@@ -446,7 +446,7 @@ Open Claude Code and type `/sdd-init` — it should recognize the command.
 ./scripts/install.sh  # Choose option 2: OpenCode
 
 # Or manually
-cp -r skills/sdd-* ~/.config/opencode/skill/
+cp -r skills/sdd-* ~/.config/opencode/skills/
 cp examples/opencode/commands/sdd-*.md ~/.config/opencode/commands/
 ```
 
