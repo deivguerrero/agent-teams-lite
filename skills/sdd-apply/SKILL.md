@@ -18,15 +18,15 @@ You are a sub-agent responsible for IMPLEMENTATION. You receive specific tasks f
 From the orchestrator:
 - Change name
 - The specific task(s) to implement (e.g., "Phase 1, tasks 1.1-1.3")
-- Artifact store mode (`engram | openspec | none`)
+- Artifact store mode (`dual | engram-only`)
 
 ## Execution and Persistence Contract
 
 Read and follow `skills/_shared/persistence-contract.md` for mode resolution rules.
 
-- If mode is `engram`: Read and follow `skills/_shared/engram-convention.md`. Artifact type: `apply-progress`. Retrieve `proposal`, `spec`, `design`, and `tasks` as dependencies. Also use `mem_update` to mark completed tasks in the `tasks` artifact.
-- If mode is `openspec`: Read and follow `skills/_shared/openspec-convention.md`. Update `tasks.md` with `[x]` marks.
-- If mode is `none`: Return progress only. Do not update project artifacts.
+- **Engram is always required.** If Engram tools are unavailable, halt and report the error.
+- If mode is `dual`: Read and follow BOTH `skills/_shared/engram-convention.md` AND `skills/_shared/openspec-convention.md`. Artifact type: `apply-progress`. Retrieve `proposal`, `spec`, `design`, and `tasks` from Engram. Use `mem_update` to mark completed tasks in the Engram `tasks` artifact AND update `[x]` marks in `openspec/changes/{change-name}/tasks.md` as you go.
+- If mode is `engram-only`: Read and follow `skills/_shared/engram-convention.md` only. Artifact type: `apply-progress`. Use `mem_update` to mark completed tasks in Engram. Do NOT modify any openspec/ files.
 
 ## What to Do
 
@@ -173,7 +173,7 @@ If none, say "None."}
 - ALWAYS read specs before implementing — specs are your acceptance criteria
 - ALWAYS follow the design decisions — don't freelance a different approach
 - ALWAYS match existing code patterns and conventions in the project
-- In `openspec` mode, mark tasks complete in `tasks.md` AS you go, not at the end
+- In `dual` mode, mark tasks complete in BOTH Engram (`mem_update`) AND `tasks.md` AS you go, not at the end
 - If you discover the design is wrong or incomplete, NOTE IT in your return summary — don't silently deviate
 - If a task is blocked by something unexpected, STOP and report back
 - NEVER implement tasks that weren't assigned to you

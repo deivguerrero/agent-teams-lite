@@ -87,6 +87,13 @@ get_tool_path() {
                 *)        echo "$HOME/.config/opencode/commands" ;;
             esac
             ;;
+        opencode-agents)
+            case "$OS" in
+                windows)  echo "$APPDATA/opencode/agents" ;;
+                macos)    echo "$HOME/.config/opencode/agents" ;;
+                *)        echo "$HOME/.config/opencode/agents" ;;
+            esac
+            ;;
         gemini-cli)
             case "$OS" in
                 windows)  echo "$USERPROFILE/.gemini/skills" ;;
@@ -160,10 +167,10 @@ print_next_step() {
 }
 
 print_engram_note() {
-    echo -e "\n${YELLOW}Recommended persistence backend:${NC} ${BOLD}Engram${NC}"
+    echo -e "\n${YELLOW}Required persistence backend:${NC} ${BOLD}Engram${NC}"
     echo -e "  ${CYAN}https://github.com/gentleman-programming/engram${NC}"
-    echo -e "  If Engram is available, it will be used automatically (recommended)"
-    echo -e "  If not, falls back to ${BOLD}none${NC} — enable ${BOLD}engram${NC} or ${BOLD}openspec${NC} for better results"
+    echo -e "  Engram is mandatory — SDD skills will not run without it"
+    echo -e "  Default mode: ${BOLD}dual${NC} (Engram + openspec/ written simultaneously)"
 }
 
 show_help() {
@@ -255,6 +262,20 @@ install_skills() {
     echo -e "\n  ${GREEN}${BOLD}$count skills installed${NC} → $target_dir"
 }
 
+install_opencode_agent() {
+    local agent_src="$REPO_DIR/examples/opencode/agents/sdd-orchestrator.md"
+    local agent_target
+    agent_target="$(get_tool_path opencode-agents)"
+
+    echo -e "\n${BLUE}Installing OpenCode agent...${NC}"
+
+    mkdir -p "$agent_target"
+    cp "$agent_src" "$agent_target/sdd-orchestrator.md"
+    print_skill "sdd-orchestrator"
+
+    echo -e "\n  ${GREEN}${BOLD}Agent installed${NC} → $agent_target"
+}
+
 install_opencode_commands() {
     local commands_src="$REPO_DIR/examples/opencode/commands"
     local commands_target
@@ -291,17 +312,7 @@ install_for_agent() {
         opencode)
             install_skills "$(get_tool_path opencode)" "OpenCode"
             install_opencode_commands
-            echo ""
-            echo -e "${YELLOW}${BOLD}╔══════════════════════════════════════════════════════════════╗${NC}"
-            echo -e "${YELLOW}${BOLD}║  ACTION REQUIRED: Add the sdd-orchestrator agent config     ║${NC}"
-            echo -e "${YELLOW}${BOLD}║                                                              ║${NC}"
-            echo -e "${YELLOW}${BOLD}║  Copy the agent block from:                                  ║${NC}"
-            echo -e "${YELLOW}${BOLD}║    examples/opencode/opencode.json                           ║${NC}"
-            echo -e "${YELLOW}${BOLD}║  Into your:                                                  ║${NC}"
-            echo -e "${YELLOW}${BOLD}║    ~/.config/opencode/opencode.json                          ║${NC}"
-            echo -e "${YELLOW}${BOLD}║                                                              ║${NC}"
-            echo -e "${YELLOW}${BOLD}║  Without this, /sdd-* commands will not find the agent.      ║${NC}"
-            echo -e "${YELLOW}${BOLD}╚══════════════════════════════════════════════════════════════╝${NC}"
+            install_opencode_agent
             ;;
         gemini-cli)
             install_skills "$(get_tool_path gemini-cli)" "Gemini CLI"
@@ -333,16 +344,15 @@ install_for_agent() {
             install_skills "$(get_tool_path claude-code)" "Claude Code"
             install_skills "$(get_tool_path opencode)" "OpenCode"
             install_opencode_commands
+            install_opencode_agent
             install_skills "$(get_tool_path gemini-cli)" "Gemini CLI"
             install_skills "$(get_tool_path codex)" "Codex"
             install_skills "$(get_tool_path cursor)" "Cursor"
             echo -e "\n${YELLOW}Next steps:${NC}"
             echo -e "  1. Add orchestrator to ${BOLD}~/.claude/CLAUDE.md${NC}"
-            echo -e "  2. ${YELLOW}${BOLD}[REQUIRED]${NC} Add orchestrator agent to ${BOLD}~/.config/opencode/opencode.json${NC}"
-            echo -e "     ${YELLOW}See: examples/opencode/opencode.json — without this, /sdd-* commands won't work${NC}"
-            echo -e "  3. Add orchestrator to ${BOLD}~/.gemini/GEMINI.md${NC}"
-            echo -e "  4. Add orchestrator to ${BOLD}Codex instructions file${NC}"
-            echo -e "  5. Add SDD rules to ${BOLD}.cursorrules${NC}"
+            echo -e "  2. Add orchestrator to ${BOLD}~/.gemini/GEMINI.md${NC}"
+            echo -e "  3. Add orchestrator to ${BOLD}Codex instructions file${NC}"
+            echo -e "  4. Add SDD rules to ${BOLD}.cursorrules${NC}"
             ;;
         custom)
             if [[ -z "${CUSTOM_PATH:-}" ]]; then

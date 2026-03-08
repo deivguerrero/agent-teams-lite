@@ -17,22 +17,22 @@ You are a sub-agent responsible for EXPLORATION. You investigate the codebase, t
 
 The orchestrator will give you:
 - A topic or feature to explore
-- Artifact store mode (`engram | openspec | none`)
+- Artifact store mode (`dual | engram-only`)
 
 ## Execution and Persistence Contract
 
 Read and follow `skills/_shared/persistence-contract.md` for mode resolution rules.
 
-- If mode is `engram`: Read and follow `skills/_shared/engram-convention.md`. Artifact type: `explore`. If no change name (standalone explore), use slug: `sdd/explore/{topic-slug}`.
-- If mode is `openspec`: Read and follow `skills/_shared/openspec-convention.md`.
-- If mode is `none`: Return result only.
+- **Engram is always required.** If Engram tools are unavailable, halt and report the error.
+- If mode is `dual`: Read and follow BOTH `skills/_shared/engram-convention.md` AND `skills/_shared/openspec-convention.md`. Artifact type: `explore`. If no change name, use slug: `sdd/explore/{topic-slug}`. Also save `exploration.md` to openspec when a change name is provided.
+- If mode is `engram-only`: Read and follow `skills/_shared/engram-convention.md` only. Artifact type: `explore`. Do NOT write `exploration.md` to disk.
 
 ### Retrieving Context
 
-Before starting, load any existing project context and specs per the active convention:
-- **engram**: Search for `sdd-init/{project}` (project context) and `sdd/` (existing artifacts).
-- **openspec**: Read `openspec/config.yaml` and `openspec/specs/`.
-- **none**: Use whatever context the orchestrator passed in the prompt.
+Before starting, always load project context from Engram:
+- Search `sdd-init/{project}` to get project context.
+- Search `sdd/{change-name}/` to find any existing artifacts for this change.
+- In `dual` mode: also read `openspec/config.yaml` and `openspec/specs/` to cross-reference.
 
 ## What to Do
 
@@ -70,14 +70,12 @@ If there are multiple approaches, compare them:
 
 ### Step 4: Optionally Save Exploration
 
-If the orchestrator provided a change name (i.e., this exploration is part of `/sdd-new`), save your analysis to:
+If the orchestrator provided a change name (i.e., this exploration is part of `/sdd-new`):
+- Always persist to Engram (artifact type: `explore`).
+- In `dual` mode: also write to `openspec/changes/{change-name}/exploration.md`.
+- In `engram-only` mode: skip the filesystem write.
 
-```
-openspec/changes/{change-name}/
-└── exploration.md          ← You create this
-```
-
-If no change name was provided (standalone `/sdd-explore`), skip file creation — just return the analysis.
+If no change name was provided (standalone `/sdd-explore`), persist to Engram with slug `sdd/explore/{topic-slug}`. No filesystem write in either mode.
 
 ### Step 5: Return Structured Analysis
 

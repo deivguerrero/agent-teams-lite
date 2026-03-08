@@ -17,9 +17,9 @@ You are a sub-agent responsible for initializing the Spec-Driven Development (SD
 
 Read and follow `skills/_shared/persistence-contract.md` for mode resolution rules.
 
-- If mode is `engram`: Read and follow `skills/_shared/engram-convention.md`. Do not create `openspec/`.
-- If mode is `openspec`: Read and follow `skills/_shared/openspec-convention.md`. Run full bootstrap.
-- If mode is `none`: Return detected context without writing project files.
+- **Engram is always required.** If Engram tools are unavailable, halt and report the error.
+- If mode is `dual`: Read and follow BOTH `skills/_shared/engram-convention.md` AND `skills/_shared/openspec-convention.md`. Persist context to Engram first, then bootstrap `openspec/`.
+- If mode is `engram-only`: Read and follow `skills/_shared/engram-convention.md` only. Do NOT create `openspec/` or any project files.
 
 ## What to Do
 
@@ -32,7 +32,7 @@ Read the project to understand:
 
 ### Step 2: Initialize Persistence Backend
 
-If mode resolves to `openspec`, create this directory structure:
+In `dual` mode, create this directory structure in the project:
 
 ```
 openspec/
@@ -42,9 +42,36 @@ openspec/
     └── archive/             ← Completed changes
 ```
 
-### Step 3: Generate Config (openspec mode)
+In `engram-only` mode, skip the openspec structure but still run the `.gitignore` setup below.
 
-Based on what you detected, create the config when in `openspec` mode:
+### Step 2b: Configure .gitignore for Engram (all modes)
+
+**Always** ensure `.gitignore` has the correct Engram entries, regardless of mode:
+
+```bash
+# Check if .gitignore already has Engram entries
+grep -q "engram.db" .gitignore 2>/dev/null || cat >> .gitignore << 'EOF'
+
+# Engram — local memory database (never commit, it's personal and binary)
+.engram/engram.db
+.engram/*.db
+
+# Engram chunks are committed intentionally — they enable team memory sync
+# DO NOT add .engram/chunks/ to .gitignore
+EOF
+```
+
+If `.gitignore` doesn't exist, create it with the entries above.
+
+Report what was done:
+```
+✓ .gitignore — .engram/engram.db excluded (personal SQLite, never versioned)
+✓ .gitignore — .engram/chunks/ NOT excluded (team sync artifacts, always versioned)
+```
+
+### Step 3: Generate Config (dual mode only)
+
+Based on what you detected, create `openspec/config.yaml` when in `dual` mode:
 
 ```yaml
 # openspec/config.yaml
@@ -82,61 +109,50 @@ rules:
 
 ### Step 4: Return Summary
 
+Persist project context to Engram following `skills/_shared/engram-convention.md` with title and topic_key `sdd-init/{project-name}`. Always do this regardless of mode.
+
 Return a structured summary adapted to the resolved mode:
 
-#### If mode is `engram`:
-
-Persist project context following `skills/_shared/engram-convention.md` with title and topic_key `sdd-init/{project-name}`.
-
-Return:
+#### Result in `dual` mode:
 ```
 ## SDD Initialized
 
 **Project**: {project name}
 **Stack**: {detected stack}
-**Persistence**: engram
+**Mode**: dual (Engram + openspec)
 
-### Context Saved
-Project context persisted to Engram.
-- **Engram ID**: #{observation-id}
-- **Topic key**: sdd-init/{project-name}
+### Engram
+- Context saved — Topic key: sdd-init/{project-name}
+- Engram ID: #{observation-id}
 
-No project files created.
-
-### Next Steps
-Ready for /sdd-explore <topic> or /sdd-new <change-name>.
-```
-
-#### If mode is `openspec`:
-```
-## SDD Initialized
-
-**Project**: {project name}
-**Stack**: {detected stack}
-**Persistence**: openspec
-
-### Structure Created
+### openspec/ Created
 - openspec/config.yaml ← Project config with detected context
 - openspec/specs/      ← Ready for specifications
 - openspec/changes/    ← Ready for change proposals
 
+### .gitignore Configured
+- .engram/engram.db → excluded (personal binary, never versioned)
+- .engram/chunks/   → versioned (team memory sync artifacts)
+
 ### Next Steps
 Ready for /sdd-explore <topic> or /sdd-new <change-name>.
 ```
 
-#### If mode is `none`:
+#### Result in `engram-only` mode:
 ```
 ## SDD Initialized
 
 **Project**: {project name}
 **Stack**: {detected stack}
-**Persistence**: none (ephemeral)
+**Mode**: engram-only
 
-### Context Detected
-{summary of detected stack and conventions}
+### Engram
+- Context saved — Topic key: sdd-init/{project-name}
+- Engram ID: #{observation-id}
 
-### Recommendation
-Enable `engram` or `openspec` for artifact persistence across sessions. Without persistence, all SDD artifacts will be lost when the conversation ends.
+### .gitignore Configured
+- .engram/engram.db → excluded (personal binary, never versioned)
+- .engram/chunks/   → versioned (team memory sync artifacts)
 
 ### Next Steps
 Ready for /sdd-explore <topic> or /sdd-new <change-name>.

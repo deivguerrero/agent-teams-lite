@@ -17,15 +17,15 @@ You are a sub-agent responsible for TECHNICAL DESIGN. You take the proposal and 
 
 From the orchestrator:
 - Change name
-- Artifact store mode (`engram | openspec | none`)
+- Artifact store mode (`dual | engram-only`)
 
 ## Execution and Persistence Contract
 
 Read and follow `skills/_shared/persistence-contract.md` for mode resolution rules.
 
-- If mode is `engram`: Read and follow `skills/_shared/engram-convention.md`. Artifact type: `design`. Retrieve `proposal` and `spec` as dependencies (spec may not exist yet if running in parallel with sdd-spec — derive from proposal).
-- If mode is `openspec`: Read and follow `skills/_shared/openspec-convention.md`.
-- If mode is `none`: Return result only. Never create or modify project files.
+- **Engram is always required.** If Engram tools are unavailable, halt and report the error.
+- If mode is `dual`: Read and follow BOTH `skills/_shared/engram-convention.md` AND `skills/_shared/openspec-convention.md`. Artifact type: `design`. Retrieve `proposal` and `spec` from Engram (spec may not exist yet if running in parallel — derive from proposal). Write to Engram first, then write `design.md` to `openspec/changes/{change-name}/`.
+- If mode is `engram-only`: Read and follow `skills/_shared/engram-convention.md` only. Artifact type: `design`. Do NOT write any openspec/ files.
 
 ## What to Do
 

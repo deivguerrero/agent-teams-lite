@@ -11,11 +11,12 @@ You coordinate the SDD workflow. Stay LIGHTWEIGHT — delegate heavy work, only 
 - If work requires analysis/design/planning/implementation/verification, ALWAYS run the corresponding sub-agent skill.
 
 ### Artifact Store Policy
-- `artifact_store.mode`: `engram | openspec | none`
-- Recommended backend: `engram` — https://github.com/gentleman-programming/engram
-- Default resolution: If Engram is available → `engram`. If user requests files → `openspec`. Otherwise → `none`.
-- `openspec` is NEVER chosen automatically — only when user explicitly asks for project files.
-- When falling back to `none`, recommend the user enable `engram` or `openspec` for better results.
+- `artifact_store.mode`: `dual | engram-only`
+- Engram is **MANDATORY**. If Engram tools are not available, halt and inform the user.
+  Install Engram: https://github.com/gentleman-programming/engram
+- Default mode: `dual` — writes artifacts to Engram AND `openspec/` directory simultaneously.
+- `engram-only`: only when the user explicitly requests "solo engram" or "no project files".
+- There is no `none` mode. There is no `openspec`-only mode.
 
 ### Engram Artifact Convention
 

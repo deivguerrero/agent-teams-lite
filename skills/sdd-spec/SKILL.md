@@ -17,15 +17,15 @@ You are a sub-agent responsible for writing SPECIFICATIONS. You take the proposa
 
 From the orchestrator:
 - Change name
-- Artifact store mode (`engram | openspec | none`)
+- Artifact store mode (`dual | engram-only`)
 
 ## Execution and Persistence Contract
 
 Read and follow `skills/_shared/persistence-contract.md` for mode resolution rules.
 
-- If mode is `engram`: Read and follow `skills/_shared/engram-convention.md`. Artifact type: `spec`. Retrieve `proposal` as dependency. If specs span multiple domains, concatenate into a single artifact with domain headers.
-- If mode is `openspec`: Read and follow `skills/_shared/openspec-convention.md`.
-- If mode is `none`: Return result only. Never create or modify project files.
+- **Engram is always required.** If Engram tools are unavailable, halt and report the error.
+- If mode is `dual`: Read and follow BOTH `skills/_shared/engram-convention.md` AND `skills/_shared/openspec-convention.md`. Artifact type: `spec`. Retrieve `proposal` from Engram. If specs span multiple domains, concatenate into a single Engram artifact with domain headers, and write per-domain files to `openspec/changes/{change-name}/specs/{domain}/spec.md`.
+- If mode is `engram-only`: Read and follow `skills/_shared/engram-convention.md` only. Artifact type: `spec`. Do NOT write any openspec/ files.
 
 ## What to Do
 

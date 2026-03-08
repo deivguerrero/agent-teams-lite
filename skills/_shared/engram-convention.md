@@ -1,5 +1,8 @@
 # Engram Artifact Convention (shared across all SDD skills)
 
+> **Engram is mandatory.** All SDD skills require Engram to be available. If `mem_save`, `mem_search`, or `mem_get_observation` are not accessible, halt and report the error — do NOT continue.
+
+
 ## Naming Rules
 
 ALL SDD artifacts persisted to Engram MUST follow this deterministic naming:
@@ -24,8 +27,25 @@ scope:     project
 | `apply-progress` | sdd-apply | Implementation progress (one per batch) |
 | `verify-report` | sdd-verify | Verification report |
 | `archive-report` | sdd-archive | Archive closure with lineage |
+| `state` | orchestrator | DAG state for recovery after context compaction |
 
 **Exception**: `sdd-init` uses `sdd-init/{project-name}` as both title and topic_key (it's project-scoped, not change-scoped).
+
+### State Artifact
+
+The orchestrator persists DAG state after each phase transition to enable recovery after context compaction:
+
+```
+mem_save(
+  title: "sdd/{change-name}/state",
+  topic_key: "sdd/{change-name}/state",
+  type: "architecture",
+  project: "{project}",
+  content: "change: {change-name}\nphase: {last-phase}\nartifact_store: dual\nartifacts:\n  proposal: true\n  specs: true\n  design: false\n  tasks: false\ntasks_progress:\n  completed: []\n  pending: []\nlast_updated: {ISO date}"
+)
+```
+
+Recovery: `mem_search("sdd/{change-name}/state")` → `mem_get_observation(id)` → parse YAML → restore orchestrator state.
 
 ### Example
 
@@ -108,6 +128,42 @@ mem_update(
 
 Use `mem_update` when you have the exact observation ID. Use `mem_save` with the same `topic_key` for upserts (Engram deduplicates by topic_key).
 
+## Team Sync via Git
+
+Engram memory is shared across the team by committing `.engram/chunks/` to the repository.
+
+### How it works
+
+```
+Developer A                    Git                    Developer B
+───────────                    ───                    ───────────
+mem_save(artifact)
+engram sync --project {proj}
+  → .engram/chunks/*.jsonl.gz
+git add .engram/chunks/
+git commit + push          ──────────────►  git pull
+                                            engram sync --import --project {proj}
+                                              → observations loaded into local DB
+                                            Agent has full context ✅
+```
+
+### Rules for team sync
+
+- `engram sync --project {project-name}` — ALWAYS use `--project` to scope the export to the current project. Never sync without it to avoid exporting personal observations from other projects.
+- `.engram/chunks/` — ALWAYS committed to git. Never add to `.gitignore`.
+- `.engram/engram.db` — NEVER committed. Always in `.gitignore`. It is a personal binary SQLite file.
+- Import is **idempotent**: `engram sync --import` tracks `chunk_id` — importing the same chunk twice has no effect.
+- `sdd-commit` runs `engram sync` automatically before every commit. Manual execution is only needed outside the SDD workflow.
+
+### New developer / new machine onboarding
+
+```bash
+git clone <repo>
+cd <project>
+engram sync --import --project <project-name>
+# Agent now has full memory context from day one
+```
+
 ## Why This Convention Exists
 
 - **Deterministic titles** → recovery works by exact match, not fuzzy search
@@ -115,3 +171,4 @@ Use `mem_update` when you have the exact observation ID. Use `mem_save` with the
 - **`sdd/` prefix** → namespaces all SDD artifacts away from other Engram observations
 - **Two-step recovery** → `mem_search` previews are always truncated; `mem_get_observation` is the only way to get full content
 - **Lineage** → archive-report includes all observation IDs for complete traceability
+- **`--project` scoping** → ensures team sync is always bounded to the project, never leaks personal memory

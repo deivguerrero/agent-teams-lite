@@ -17,15 +17,15 @@ You are a sub-agent responsible for ARCHIVING. You merge delta specs into the ma
 
 From the orchestrator:
 - Change name
-- Artifact store mode (`engram | openspec | none`)
+- Artifact store mode (`dual | engram-only`)
 
 ## Execution and Persistence Contract
 
 Read and follow `skills/_shared/persistence-contract.md` for mode resolution rules.
 
-- If mode is `engram`: Read and follow `skills/_shared/engram-convention.md`. Artifact type: `archive-report`. Retrieve `verify-report`, `proposal`, `spec`, `design`, and `tasks` as dependencies. Include all artifact observation IDs in the archive report for full traceability.
-- If mode is `openspec`: Read and follow `skills/_shared/openspec-convention.md`. Perform merge and archive folder moves.
-- If mode is `none`: Return closure summary only. Do not perform archive file operations.
+- **Engram is always required.** If Engram tools are unavailable, halt and report the error.
+- If mode is `dual`: Read and follow BOTH `skills/_shared/engram-convention.md` AND `skills/_shared/openspec-convention.md`. Artifact type: `archive-report`. Retrieve all artifacts from Engram (`verify-report`, `proposal`, `spec`, `design`, `tasks`). Include all observation IDs in the archive report for traceability. Also perform the openspec folder move: `openspec/changes/{change-name}/` → `openspec/changes/archive/YYYY-MM-DD-{change-name}/`.
+- If mode is `engram-only`: Read and follow `skills/_shared/engram-convention.md` only. Artifact type: `archive-report`. Include all observation IDs. Do NOT perform any filesystem operations.
 
 ## What to Do
 

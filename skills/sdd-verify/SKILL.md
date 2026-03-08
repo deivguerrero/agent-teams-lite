@@ -19,15 +19,15 @@ Static analysis alone is NOT enough. You must execute the code.
 
 From the orchestrator:
 - Change name
-- Artifact store mode (`engram | openspec | none`)
+- Artifact store mode (`dual | engram-only`)
 
 ## Execution and Persistence Contract
 
 Read and follow `skills/_shared/persistence-contract.md` for mode resolution rules.
 
-- If mode is `engram`: Read and follow `skills/_shared/engram-convention.md`. Artifact type: `verify-report`. Retrieve `proposal`, `spec`, `design`, and `tasks` as dependencies.
-- If mode is `openspec`: Read and follow `skills/_shared/openspec-convention.md`. Save to `openspec/changes/{change-name}/verify-report.md`.
-- If mode is `none`: Return the verification report inline only. Never write files.
+- **Engram is always required.** If Engram tools are unavailable, halt and report the error.
+- If mode is `dual`: Read and follow BOTH `skills/_shared/engram-convention.md` AND `skills/_shared/openspec-convention.md`. Artifact type: `verify-report`. Retrieve `proposal`, `spec`, `design`, and `tasks` from Engram. Write report to Engram first, then save to `openspec/changes/{change-name}/verify-report.md`.
+- If mode is `engram-only`: Read and follow `skills/_shared/engram-convention.md` only. Artifact type: `verify-report`. Do NOT write any openspec/ files.
 
 ## What to Do
 
@@ -275,6 +275,6 @@ Return to the orchestrator the same content you wrote to `verify-report.md`:
 - WARNINGS = should fix but won't block
 - SUGGESTIONS = improvements, not blockers
 - DO NOT fix any issues — only report them. The orchestrator decides what to do.
-- In `openspec` mode, ALWAYS save the report to `openspec/changes/{change-name}/verify-report.md` — this persists the verification for sdd-archive and the audit trail
+- In `dual` mode, ALWAYS save the report to BOTH Engram AND `openspec/changes/{change-name}/verify-report.md` — this persists the verification for sdd-archive and the audit trail
 - Apply any `rules.verify` from `openspec/config.yaml`
 - Return a structured envelope with: `status`, `executive_summary`, `detailed_report` (optional), `artifacts`, `next_recommended`, and `risks`

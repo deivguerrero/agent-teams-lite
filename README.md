@@ -373,7 +373,7 @@ Each sub-agent is a SKILL.md file — pure Markdown instructions that any AI ass
 
 ### Shared Conventions
 
-All 9 skills reference three shared convention files in `skills/_shared/` instead of inlining persistence logic. This removes duplication and ensures consistent behavior across the entire workflow.
+All 12 skills reference three shared convention files in `skills/_shared/` instead of inlining persistence logic. This removes duplication and ensures consistent behavior across the entire workflow.
 
 | File | Purpose |
 |------|---------|
@@ -382,7 +382,7 @@ All 9 skills reference three shared convention files in `skills/_shared/` instea
 | `openspec-convention.md` | Filesystem paths for each artifact, directory structure, config.yaml reference, and archive layout |
 
 **Why they exist:**
-- **DRY** — Previously each skill inlined its own persistence logic (~224 lines of duplication across 9 skills). Now each skill references the shared files.
+- **DRY** — Previously each skill inlined its own persistence logic (~224 lines of duplication across 9 skills (now 11)). Now each skill references the shared files.
 - **Deterministic recovery** — Engram artifact naming follows a strict `sdd/{change}/{type}` convention with `topic_key`, so any skill can reliably find artifacts created by other skills without fuzzy search.
 - **Consistent mode behavior** — All skills resolve `engram | openspec | none` the same way. `openspec` is never chosen automatically.
 
@@ -409,7 +409,15 @@ Dedicated setup guides for all supported tools:
 
 ### Claude Code
 
-**1. Copy skills:**
+**1. Install Engram (required):**
+
+Engram provides persistent memory across sessions. Claude Code requires it.
+
+```bash
+# https://github.com/gentleman-programming/engram
+```
+
+**2. Copy skills:**
 
 ```bash
 # Using the install script
@@ -419,60 +427,73 @@ Dedicated setup guides for all supported tools:
 cp -r skills/sdd-* ~/.claude/skills/
 ```
 
-**2. Add orchestrator to `~/.claude/CLAUDE.md`:**
+**3. Add orchestrator to `~/.claude/CLAUDE.md`:**
 
 Append the contents of [`examples/claude-code/CLAUDE.md`](examples/claude-code/CLAUDE.md) to your existing `CLAUDE.md`.
 
-This keeps your existing assistant identity and adds SDD as an orchestration overlay.
+This adds SDD as an orchestration overlay without replacing your existing assistant identity.
 
-The orchestrator instructions teach Claude Code to:
-- Detect SDD triggers (`/sdd-new`, feature descriptions, etc.)
-- Launch sub-agents via the Task tool
-- Pass skill file paths so sub-agents read their instructions
-- Track state between phases
+The orchestrator teaches Claude Code to:
+- Detect SDD triggers (`sdd init`, `sdd new <name>`, feature descriptions, etc.)
+- Launch true sub-agents via the `Task tool` — each sub-agent starts with fresh context
+- Read skill files from `~/.claude/skills/sdd-*/SKILL.md`
+- Sync Engram memory before every commit via `engram sync --project <name>`
 
-**3. Verify:**
+**4. Verify:**
 
-Open Claude Code and type `/sdd-init` — it should recognize the command.
+Open Claude Code in your project and type:
+
+```
+sdd init
+```
+
+Claude should recognize the trigger, confirm Engram availability, and initialize SDD context.
+
+> **How triggers work in Claude Code:** Unlike OpenCode (which has native `/sdd-*` slash commands), Claude Code detects SDD intent from natural language. Both `sdd init` and `/sdd-init` are recognized — the orchestrator intercepts them and dispatches sub-agents via the Task tool. Sub-agents always have fresh context, making Claude Code equivalent to OpenCode for agent team workflows.
 
 ---
 
 ### OpenCode
 
-**1. Copy skills and commands:**
+**1. Install Engram (required):**
 
 ```bash
-# Using the install script (installs both skills + commands)
+# https://github.com/gentleman-programming/engram
+```
+
+**2. Install skills, commands, and agent (one step):**
+
+```bash
+# Using the install script — installs skills + commands + agent automatically
 ./scripts/install.sh  # Choose option 2: OpenCode
 
 # Or manually
 cp -r skills/sdd-* ~/.config/opencode/skills/
 cp examples/opencode/commands/sdd-*.md ~/.config/opencode/commands/
+cp examples/opencode/agents/sdd-orchestrator.md ~/.config/opencode/agents/
 ```
 
-**2. Add orchestrator agent to `~/.config/opencode/opencode.json`:**
+The install script copies:
+- **12 skills** → `~/.config/opencode/skills/`
+- **8 slash commands** → `~/.config/opencode/commands/`
+- **`sdd-orchestrator` agent** → `~/.config/opencode/agents/` (loaded automatically by OpenCode)
 
-Merge the `agent` block from [`examples/opencode/opencode.json`](examples/opencode/opencode.json) into your existing config.
+No manual JSON editing required.
 
-You can either:
-- **Add it to your existing agent** (e.g., append SDD orchestrator instructions to your primary agent's prompt)
-- **Create a dedicated agent** (copy the `sdd-orchestrator` agent definition as-is)
+**3. Verify and use:**
 
-Recommended OpenCode setup:
-- Keep your everyday assistant (e.g., `gentleman`) as `primary`
-- Set `sdd-orchestrator` to `all`
-- Select `sdd-orchestrator` only when you want SDD workflows
+```bash
+opencode .            # Open OpenCode in your project
+# Tab → select sdd-orchestrator
+/sdd-init             # Initialize SDD — confirms Engram + bootstraps openspec/
+/sdd-new <name>       # Start a new change
+/sdd-ff <name>        # Fast-forward all planning phases
+/sdd-apply            # Implement in batches
+/sdd-verify           # Validate against specs
+/sdd-archive          # Close and archive the change
+```
 
-**3. Verify:**
-
-Open OpenCode and type `/sdd-init` — it should recognize the command.
-
-How to use in OpenCode:
-- Start OpenCode in your project: `opencode .`
-- Use the agent picker (Tab) and choose `sdd-orchestrator`
-- Run SDD commands: `/sdd-init`, `/sdd-new <name>`, `/sdd-apply`, etc.
-- Commands are installed at `~/.config/opencode/commands/` and auto-discovered by OpenCode
-- Switch back to your normal agent (Tab) for day-to-day coding
+Switch back to your everyday agent (Tab) for day-to-day coding outside SDD workflows.
 
 ---
 
@@ -678,8 +699,9 @@ agent-teams-lite/
 ├── examples/                          ← Config examples per tool
 │   ├── claude-code/CLAUDE.md
 │   ├── opencode/
-│   │   ├── opencode.json              ← Orchestrator agent config
-│   │   └── commands/sdd-*.md          ← Slash commands for OpenCode
+│   │   ├── agents/sdd-orchestrator.md ← Orchestrator agent (Markdown, auto-loaded)
+│   │   ├── commands/sdd-*.md          ← Slash commands for OpenCode
+│   │   └── opencode.json              ← Legacy reference (superseded by agents/)
 │   ├── gemini-cli/GEMINI.md
 │   ├── codex/agents.md
 │   ├── vscode/copilot-instructions.md

@@ -43,6 +43,7 @@ $ToolPaths = @{
     'claude-code'       = Join-Path $env:USERPROFILE '.claude\skills'
     'opencode'          = Join-Path $env:APPDATA 'opencode\skills'
     'opencode-commands' = Join-Path $env:APPDATA 'opencode\commands'
+    'opencode-agents'   = Join-Path $env:APPDATA 'opencode\agents'
     'gemini-cli'        = Join-Path $env:USERPROFILE '.gemini\skills'
     'codex'             = Join-Path $env:USERPROFILE '.codex\skills'
     'vscode'            = Join-Path '.' '.vscode\skills'
@@ -211,6 +212,22 @@ function Install-Skills {
     Write-Host " -> $TargetDir"
 }
 
+function Install-OpenCodeAgent {
+    $agentSrc = Join-Path $RepoDir 'examples\opencode\agents\sdd-orchestrator.md'
+    $agentTarget = $ToolPaths['opencode-agents']
+
+    Write-Host ''
+    Write-Host 'Installing OpenCode agent...' -ForegroundColor Blue
+
+    New-Item -ItemType Directory -Path $agentTarget -Force | Out-Null
+    Copy-Item -Path $agentSrc -Destination (Join-Path $agentTarget 'sdd-orchestrator.md') -Force
+
+    Write-Skill 'sdd-orchestrator'
+    Write-Host ''
+    Write-Host '  Agent installed' -ForegroundColor Green -NoNewline
+    Write-Host " -> $agentTarget"
+}
+
 function Install-OpenCodeCommands {
     $commandsSrc = Join-Path $RepoDir 'examples\opencode\commands'
     $commandsTarget = $ToolPaths['opencode-commands']
@@ -251,17 +268,7 @@ function Install-ForAgent {
         'opencode' {
             Install-Skills -TargetDir $ToolPaths['opencode'] -ToolName 'OpenCode'
             Install-OpenCodeCommands
-            Write-Host ''
-            Write-Host ([char]0x2554 + ([string][char]0x2550 * 62) + [char]0x2557) -ForegroundColor Yellow
-            Write-Host ([char]0x2551 + '  ACTION REQUIRED: Add the sdd-orchestrator agent config     ' + [char]0x2551) -ForegroundColor Yellow
-            Write-Host ([char]0x2551 + '                                                              ' + [char]0x2551) -ForegroundColor Yellow
-            Write-Host ([char]0x2551 + '  Copy the agent block from:                                  ' + [char]0x2551) -ForegroundColor Yellow
-            Write-Host ([char]0x2551 + '    examples\opencode\opencode.json                           ' + [char]0x2551) -ForegroundColor Yellow
-            Write-Host ([char]0x2551 + '  Into your:                                                  ' + [char]0x2551) -ForegroundColor Yellow
-            Write-Host ([char]0x2551 + "    $env:APPDATA\opencode\opencode.json                       " + [char]0x2551) -ForegroundColor Yellow
-            Write-Host ([char]0x2551 + '                                                              ' + [char]0x2551) -ForegroundColor Yellow
-            Write-Host ([char]0x2551 + '  Without this, /sdd-* commands will not find the agent.      ' + [char]0x2551) -ForegroundColor Yellow
-            Write-Host ([char]0x255A + ([string][char]0x2550 * 62) + [char]0x255D) -ForegroundColor Yellow
+            Install-OpenCodeAgent
         }
         'gemini-cli' {
             Install-Skills -TargetDir $ToolPaths['gemini-cli'] -ToolName 'Gemini CLI'
@@ -293,6 +300,7 @@ function Install-ForAgent {
             Install-Skills -TargetDir $ToolPaths['claude-code'] -ToolName 'Claude Code'
             Install-Skills -TargetDir $ToolPaths['opencode'] -ToolName 'OpenCode'
             Install-OpenCodeCommands
+            Install-OpenCodeAgent
             Install-Skills -TargetDir $ToolPaths['gemini-cli'] -ToolName 'Gemini CLI'
             Install-Skills -TargetDir $ToolPaths['codex'] -ToolName 'Codex'
             Install-Skills -TargetDir $ToolPaths['cursor'] -ToolName 'Cursor'
@@ -300,16 +308,11 @@ function Install-ForAgent {
             Write-Host 'Next steps:' -ForegroundColor Yellow
             Write-Host '  1. Add orchestrator to ' -NoNewline
             Write-Host '~\.claude\CLAUDE.md' -ForegroundColor White
-            Write-Host '  2. ' -NoNewline
-            Write-Host '[REQUIRED] ' -ForegroundColor Yellow -NoNewline
-            Write-Host 'Add orchestrator agent to ' -NoNewline
-            Write-Host "$env:APPDATA\opencode\opencode.json" -ForegroundColor White
-            Write-Host '     See: examples\opencode\opencode.json — without this, /sdd-* commands will not work' -ForegroundColor Yellow
-            Write-Host '  3. Add orchestrator to ' -NoNewline
+            Write-Host '  2. Add orchestrator to ' -NoNewline
             Write-Host '~\.gemini\GEMINI.md' -ForegroundColor White
-            Write-Host '  4. Add orchestrator to ' -NoNewline
+            Write-Host '  3. Add orchestrator to ' -NoNewline
             Write-Host 'Codex instructions file' -ForegroundColor White
-            Write-Host '  5. Add SDD rules to ' -NoNewline
+            Write-Host '  4. Add SDD rules to ' -NoNewline
             Write-Host '.cursorrules' -ForegroundColor White
         }
         'custom' {
