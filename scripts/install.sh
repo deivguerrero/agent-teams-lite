@@ -101,7 +101,12 @@ get_tool_path() {
                 *)        echo "$HOME/.codex/skills" ;;
             esac
             ;;
-        vscode)      echo "./.vscode/skills" ;;
+        vscode)
+            case "$OS" in
+                windows)  echo "$USERPROFILE/.copilot/skills" ;;
+                *)        echo "$HOME/.copilot/skills" ;;
+            esac
+            ;;
         antigravity)
             case "$OS" in
                 windows)  echo "$USERPROFILE/.gemini/antigravity/skills" ;;
@@ -231,7 +236,9 @@ install_skills() {
     fi
 
     local count=0
-    for skill_dir in "$SKILLS_SRC"/sdd-*/; do
+    # Install sdd-* skills AND skill-registry
+    for skill_dir in "$SKILLS_SRC"/sdd-*/ "$SKILLS_SRC"/skill-registry/; do
+        [ -d "$skill_dir" ] || continue
         local skill_name
         skill_name=$(basename "$skill_dir")
 
@@ -314,7 +321,6 @@ install_for_agent() {
         vscode)
             install_skills "$(get_tool_path vscode)" "VS Code (Copilot)"
             print_next_step ".github/copilot-instructions.md" "examples/vscode/copilot-instructions.md"
-            echo -e "  ${YELLOW}Note:${NC} Skills installed in current project (.vscode/skills/)"
             ;;
         antigravity)
             target="$(get_tool_path antigravity)"

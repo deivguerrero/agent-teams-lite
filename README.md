@@ -612,11 +612,11 @@ VS Code supports MCP and custom instructions natively. The skills work with Copi
 **1. Copy skills to workspace:**
 
 ```bash
-# Per-project (recommended)
-cp -r skills/_shared skills/sdd-* skills/skill-registry ./your-project/.vscode/skills/
-
-# Or using the install script
+# Using the install script
 ./scripts/install.sh  # Choose VS Code option
+
+# Or manually (global)
+cp -r skills/_shared skills/sdd-* skills/skill-registry ~/.copilot/skills/
 ```
 
 **2. Add orchestrator instructions:**

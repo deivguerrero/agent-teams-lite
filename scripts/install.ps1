@@ -45,7 +45,7 @@ $ToolPaths = @{
     'opencode-commands' = Join-Path $env:USERPROFILE '.config\opencode\commands'
     'gemini-cli'        = Join-Path $env:USERPROFILE '.gemini\skills'
     'codex'             = Join-Path $env:USERPROFILE '.codex\skills'
-    'vscode'            = Join-Path '.' '.vscode\skills'
+    'vscode'            = Join-Path $env:USERPROFILE '.copilot\skills'
     'antigravity'       = Join-Path $env:USERPROFILE '.gemini\antigravity\skills'
     'cursor'            = Join-Path $env:USERPROFILE '.cursor\skills'
     'project-local'     = Join-Path '.' 'skills'
@@ -185,7 +185,12 @@ function Install-Skills {
     }
 
     $count = 0
-    $skillDirs = Get-ChildItem -Path $SkillsSrc -Directory -Filter 'sdd-*'
+    # Install sdd-* skills AND skill-registry
+    $skillDirs = @(Get-ChildItem -Path $SkillsSrc -Directory -Filter 'sdd-*')
+    $registryDir = Join-Path $SkillsSrc 'skill-registry'
+    if (Test-Path $registryDir) {
+        $skillDirs += Get-Item $registryDir
+    }
 
     foreach ($skillDir in $skillDirs) {
         $skillName = $skillDir.Name
@@ -274,7 +279,6 @@ function Install-ForAgent {
         'vscode' {
             Install-Skills -TargetDir $ToolPaths['vscode'] -ToolName 'VS Code (Copilot)'
             Write-NextStep '.github\copilot-instructions.md' 'examples\vscode\copilot-instructions.md'
-            Write-Warn 'Skills installed in current project (.vscode\skills\)'
         }
         'antigravity' {
             Install-Skills -TargetDir $ToolPaths['antigravity'] -ToolName 'Antigravity'
