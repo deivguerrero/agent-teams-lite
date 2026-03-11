@@ -30,17 +30,15 @@ You generate or update the **skill registry** — a catalog of all available ski
    - `~/.claude/skills/` — Claude Code
    - `~/.config/opencode/skills/` — OpenCode
    - `~/.gemini/skills/` — Gemini CLI
-   - `~/.gemini/antigravity/skills/` — Antigravity (global)
-   - `~/.codex/skills/` — Codex
-   - The parent directory of this skill file (catch-all)
+   - `~/.cursor/skills/` — Cursor
+   - `~/.copilot/skills/` — VS Code Copilot
+   - The parent directory of this skill file (catch-all for any tool)
 
    **Project-level (workspace skills):**
    - `{project-root}/.claude/skills/` — Claude Code
-   - `{project-root}/.codex/skills/` — Codex
    - `{project-root}/.gemini/skills/` — Gemini CLI
    - `{project-root}/.agent/skills/` — Antigravity (workspace)
-   - `{project-root}/.vscode/skills/` — VS Code Copilot
-   - `{project-root}/skills/` — Generic / Cursor
+   - `{project-root}/skills/` — Generic
 
 2. **SKIP `sdd-*` and `_shared`** — those are SDD workflow skills, not coding/task skills
 3. Also **SKIP `skill-registry`** — that's this skill
