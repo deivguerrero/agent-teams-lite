@@ -46,6 +46,17 @@ $ExamplesDir = Join-Path $RepoDir 'examples'
 $MarkerBegin = '<!-- BEGIN:agent-teams-lite -->'
 $MarkerEnd = '<!-- END:agent-teams-lite -->'
 
+# gentle-ai-installer markers (detect to avoid duplication)
+$GaiMarkerBegin = '<!-- gentle-ai:sdd-orchestrator -->'
+$GaiMarkerEnd = '<!-- /gentle-ai:sdd-orchestrator -->'
+
+# Content headings that indicate orchestrator is already present
+$OrchestratorHeadings = @(
+    '## Agent Teams Orchestrator',
+    '## Spec-Driven Development (SDD) Orchestrator',
+    '## Spec-Driven Development (SDD)'
+)
+
 $SkillsPaths = @{
     'claude-code' = Join-Path $env:USERPROFILE '.claude\skills'
     'opencode'    = Join-Path $env:USERPROFILE '.config\opencode\skills'
@@ -171,22 +182,51 @@ function Set-Orchestrator {
     $promptDir = Split-Path -Parent $PromptPath
     New-Item -ItemType Directory -Path $promptDir -Force | Out-Null
 
-    $content = Get-Content -Path $ExampleFile -Raw
+    # Strip preamble (human-readable header) — only inject from "## Agent Teams" onward
+    $rawContent = Get-Content -Path $ExampleFile -Raw
+    if ($rawContent -match '(?s)(## Agent Teams.*)') {
+        $content = $Matches[1]
+    } else {
+        $content = $rawContent
+    }
 
     if (Test-Path $PromptPath) {
         $existing = Get-Content -Path $PromptPath -Raw
         if ($existing -match [regex]::Escape($MarkerBegin)) {
-            # Replace content between markers
+            # Our markers exist — replace content between them
             $pattern = "(?s)$([regex]::Escape($MarkerBegin)).*?$([regex]::Escape($MarkerEnd))"
             $replacement = "$MarkerBegin`n$content`n$MarkerEnd"
             $updated = [regex]::Replace($existing, $pattern, $replacement)
             Set-Content -Path $PromptPath -Value $updated -NoNewline
             Write-Ok "Orchestrator updated in $PromptPath"
+        } elseif ($existing -match [regex]::Escape($GaiMarkerBegin)) {
+            # gentle-ai markers exist — replace with ours
+            $pattern = "(?s)$([regex]::Escape($GaiMarkerBegin)).*?$([regex]::Escape($GaiMarkerEnd))"
+            $replacement = "$MarkerBegin`n$content`n$MarkerEnd"
+            $updated = [regex]::Replace($existing, $pattern, $replacement)
+            Set-Content -Path $PromptPath -Value $updated -NoNewline
+            Write-Ok "Orchestrator updated in $PromptPath (replaced gentle-ai section)"
         } else {
-            # Append with markers
-            $appendContent = "`n`n$MarkerBegin`n$content`n$MarkerEnd"
-            Add-Content -Path $PromptPath -Value $appendContent
-            Write-Ok "Orchestrator appended to $PromptPath"
+            # Check if orchestrator content already exists (no markers)
+            $alreadyPresent = $false
+            foreach ($heading in $OrchestratorHeadings) {
+                if ($existing.Contains($heading)) {
+                    $alreadyPresent = $true
+                    break
+                }
+            }
+
+            if ($alreadyPresent) {
+                Write-Warn "Orchestrator already present in $PromptPath (no markers found)"
+                Write-Info "To enable auto-updates, wrap the SDD section with:"
+                Write-Info "  $MarkerBegin"
+                Write-Info "  $MarkerEnd"
+            } else {
+                # No existing content — append with markers
+                $appendContent = "`n`n$MarkerBegin`n$content`n$MarkerEnd"
+                Add-Content -Path $PromptPath -Value $appendContent
+                Write-Ok "Orchestrator appended to $PromptPath"
+            }
         }
     } else {
         # Create new file
@@ -224,13 +264,13 @@ function Set-OpenCode {
                 $existing = Get-Content -Path $configFile -Raw | ConvertFrom-Json
                 $example = Get-Content -Path $exampleConfig -Raw | ConvertFrom-Json
 
-                # Merge agents
-                if ($example.PSObject.Properties['agents']) {
-                    if (-not $existing.PSObject.Properties['agents']) {
-                        $existing | Add-Member -NotePropertyName 'agents' -NotePropertyValue @{}
+                # Merge agent config (OpenCode uses "agent" singular)
+                if ($example.PSObject.Properties['agent']) {
+                    if (-not $existing.PSObject.Properties['agent']) {
+                        $existing | Add-Member -NotePropertyName 'agent' -NotePropertyValue @{}
                     }
-                    foreach ($prop in $example.agents.PSObject.Properties) {
-                        $existing.agents | Add-Member -NotePropertyName $prop.Name -NotePropertyValue $prop.Value -Force
+                    foreach ($prop in $example.agent.PSObject.Properties) {
+                        $existing.agent | Add-Member -NotePropertyName $prop.Name -NotePropertyValue $prop.Value -Force
                     }
                 }
 

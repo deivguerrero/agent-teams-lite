@@ -22,6 +22,17 @@ EXAMPLES_DIR="$REPO_DIR/examples"
 MARKER_BEGIN="<!-- BEGIN:agent-teams-lite -->"
 MARKER_END="<!-- END:agent-teams-lite -->"
 
+# gentle-ai-installer markers (detect to avoid duplication)
+GAI_MARKER_BEGIN="<!-- gentle-ai:sdd-orchestrator -->"
+GAI_MARKER_END="<!-- /gentle-ai:sdd-orchestrator -->"
+
+# Content headings that indicate orchestrator is already present
+ORCHESTRATOR_HEADINGS=(
+    "## Agent Teams Orchestrator"
+    "## Spec-Driven Development (SDD) Orchestrator"
+    "## Spec-Driven Development (SDD)"
+)
+
 # ============================================================================
 # OS Detection
 # ============================================================================
@@ -214,11 +225,12 @@ setup_orchestrator() {
     mkdir -p "$prompt_dir"
 
     local content
-    content=$(cat "$example_file")
+    # Strip preamble (human-readable header) — only inject from "## Agent Teams" onward
+    content=$(sed -n '/^## Agent Teams/,$p' "$example_file")
 
     if [ -f "$prompt_path" ]; then
         if grep -qF "$MARKER_BEGIN" "$prompt_path"; then
-            # Markers exist — replace content between them
+            # Our markers exist — replace content between them
             local tmp
             tmp=$(mktemp)
             awk -v begin="$MARKER_BEGIN" -v end="$MARKER_END" -v content="$content" '
@@ -228,15 +240,43 @@ setup_orchestrator() {
             ' "$prompt_path" > "$tmp"
             mv "$tmp" "$prompt_path"
             ok "Orchestrator updated in $prompt_path"
+        elif grep -qF "$GAI_MARKER_BEGIN" "$prompt_path"; then
+            # gentle-ai markers exist — replace content between GAI markers with ours
+            local tmp
+            tmp=$(mktemp)
+            awk -v gai_begin="$GAI_MARKER_BEGIN" -v gai_end="$GAI_MARKER_END" \
+                -v begin="$MARKER_BEGIN" -v end="$MARKER_END" -v content="$content" '
+                $0 == gai_begin { print begin; print content; skip=1; next }
+                $0 == gai_end   { print end; skip=0; next }
+                !skip           { print }
+            ' "$prompt_path" > "$tmp"
+            mv "$tmp" "$prompt_path"
+            ok "Orchestrator updated in $prompt_path (replaced gentle-ai section)"
         else
-            # File exists but no markers — append
-            {
-                echo ""
-                echo "$MARKER_BEGIN"
-                echo "$content"
-                echo "$MARKER_END"
-            } >> "$prompt_path"
-            ok "Orchestrator appended to $prompt_path"
+            # Check if orchestrator content already exists (no markers)
+            local already_present=false
+            for heading in "${ORCHESTRATOR_HEADINGS[@]}"; do
+                if grep -qF "$heading" "$prompt_path"; then
+                    already_present=true
+                    break
+                fi
+            done
+
+            if $already_present; then
+                warn "Orchestrator already present in $prompt_path (no markers found)"
+                info "To enable auto-updates, wrap the SDD section with:"
+                info "  $MARKER_BEGIN"
+                info "  $MARKER_END"
+            else
+                # No existing content — append with markers
+                {
+                    echo ""
+                    echo "$MARKER_BEGIN"
+                    echo "$content"
+                    echo "$MARKER_END"
+                } >> "$prompt_path"
+                ok "Orchestrator appended to $prompt_path"
+            fi
         fi
     else
         # File doesn't exist — create with markers
@@ -277,12 +317,13 @@ setup_opencode() {
     if command -v jq &>/dev/null && [ -f "$example_config" ]; then
         if [ -f "$config_file" ]; then
             # Extract agent block from example and merge into existing config
+            # Note: OpenCode uses "agent" (singular) as the key
             local example_agents
-            example_agents=$(jq '.agents // {}' "$example_config")
+            example_agents=$(jq '.agent // {}' "$example_config")
 
             local merged
             merged=$(jq --argjson new_agents "$example_agents" '
-                .agents = ((.agents // {}) + $new_agents)
+                .agent = ((.agent // {}) + $new_agents)
             ' "$config_file")
 
             echo "$merged" > "$config_file"
