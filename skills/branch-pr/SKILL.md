@@ -31,8 +31,8 @@ Use this skill when:
 
 ```
 1. Verify issue has `status:approved` label
-2. Create branch: feat/*, fix/*, docs/*, refactor/*, chore/*
-3. Implement changes
+2. Create branch: type/description (see Branch Naming below)
+3. Implement changes with conventional commits
 4. Run shellcheck on modified scripts
 5. Open PR using the template
 6. Add exactly one type:* label
@@ -43,13 +43,27 @@ Use this skill when:
 
 ## Branch Naming
 
+Branch names MUST match this regex:
+
+```
+^(feat|fix|chore|docs|style|refactor|perf|test|build|ci|revert)\/[a-z0-9._-]+$
+```
+
+**Format:** `type/description` — lowercase, no spaces, only `a-z0-9._-` in description.
+
 | Type | Branch pattern | Example |
 |------|---------------|---------|
-| Bug fix | `fix/<short-description>` | `fix/zsh-glob-error` |
-| Feature | `feat/<short-description>` | `feat/codex-support` |
-| Docs | `docs/<short-description>` | `docs/installation-guide` |
-| Refactor | `refactor/<short-description>` | `refactor/extract-shared-logic` |
-| Chore | `chore/<short-description>` | `chore/update-ci-actions` |
+| Feature | `feat/<description>` | `feat/user-login` |
+| Bug fix | `fix/<description>` | `fix/zsh-glob-error` |
+| Chore | `chore/<description>` | `chore/update-ci-actions` |
+| Docs | `docs/<description>` | `docs/installation-guide` |
+| Style | `style/<description>` | `style/format-scripts` |
+| Refactor | `refactor/<description>` | `refactor/extract-shared-logic` |
+| Performance | `perf/<description>` | `perf/reduce-startup-time` |
+| Test | `test/<description>` | `test/add-setup-coverage` |
+| Build | `build/<description>` | `build/update-shellcheck` |
+| CI | `ci/<description>` | `ci/add-branch-validation` |
+| Revert | `revert/<description>` | `revert/broken-setup-change` |
 
 ---
 
@@ -125,9 +139,18 @@ All boxes must be checked:
 
 ## Conventional Commits
 
+Commit messages MUST match this regex:
+
 ```
-<type>(<scope>): <short description>
+^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)(\([a-z0-9\._-]+\))?!?: .+
 ```
+
+**Format:** `type(scope): description` or `type: description`
+
+- `type` — required, one of: `build`, `chore`, `ci`, `docs`, `feat`, `fix`, `perf`, `refactor`, `revert`, `style`, `test`
+- `(scope)` — optional, lowercase with `a-z0-9._-`
+- `!` — optional, indicates breaking change
+- `description` — required, starts after `: `
 
 Type-to-label mapping:
 
@@ -138,6 +161,12 @@ Type-to-label mapping:
 | `docs` | `type:docs` |
 | `refactor` | `type:refactor` |
 | `chore` | `type:chore` |
+| `style` | `type:chore` |
+| `perf` | `type:feature` |
+| `test` | `type:chore` |
+| `build` | `type:chore` |
+| `ci` | `type:chore` |
+| `revert` | `type:bug` |
 | `feat!` / `fix!` | `type:breaking-change` |
 
 Examples:
@@ -147,6 +176,12 @@ fix(skills): correct topic key format in sdd-apply
 docs(readme): update multi-model configuration guide
 refactor(skills): extract shared persistence logic
 chore(ci): add shellcheck to PR validation workflow
+perf(scripts): reduce setup.sh execution time
+style(skills): fix markdown formatting
+test(scripts): add setup.sh integration tests
+ci(workflows): add branch name validation
+revert: undo broken setup change
+feat!: redesign skill loading system
 ```
 
 ---

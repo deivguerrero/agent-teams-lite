@@ -30,10 +30,24 @@ A maintainer will review the issue and add the `status:approved` label if it's a
 
 Once the issue is approved:
 
-1. Fork the repo and create a branch from `main`
-2. Implement your change
+1. Fork the repo and create a branch from `main` (see branch naming below)
+2. Implement your change with conventional commits
 3. Open a PR using the PR template — **link the approved issue** with `Closes #N`
 4. Add exactly **one `type:*` label** to the PR (see label system below)
+
+### Branch Naming
+
+Branch names MUST follow this format:
+
+```
+type/description
+```
+
+**Regex:** `^(feat|fix|chore|docs|style|refactor|perf|test|build|ci|revert)\/[a-z0-9._-]+$`
+
+**Examples:** `feat/user-login`, `fix/zsh-glob-error`, `docs/installation-guide`
+
+Allowed types: `feat`, `fix`, `chore`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `revert`
 
 ### Step 4: Automated PR Checks
 
@@ -86,29 +100,36 @@ All checks must pass before a PR can be merged.
 
 ### Conventional Commit Format
 
-```
-<type>(<scope>): <short description>
+Commit messages MUST match this regex:
 
-[optional body]
-
-[optional footer]
 ```
+^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)(\([a-z0-9\._-]+\))?!?: .+
+```
+
+**Format:** `type(scope): description` or `type: description`
+
+- `type` — required: `build`, `chore`, `ci`, `docs`, `feat`, `fix`, `perf`, `refactor`, `revert`, `style`, `test`
+- `(scope)` — optional, lowercase with `a-z0-9._-`
+- `!` — optional, indicates breaking change
+- `description` — required, starts after `: `
 
 **Examples:**
 
 ```
 feat(scripts): add multi-model setup for OpenCode
-
 fix(skills): correct engram topic key format in sdd-apply
-
 docs(readme): update installation instructions
-
 refactor(skills): extract shared persistence logic
-
 chore(ci): add shellcheck to PR validation workflow
+perf(scripts): reduce setup.sh execution time
+style(skills): fix markdown formatting
+test(scripts): add setup.sh integration tests
+ci(workflows): add branch name validation
+revert: undo broken setup change
+feat!: redesign skill loading system
 ```
 
-Types map to labels: `feat` → `type:feature`, `fix` → `type:bug`, `docs` → `type:docs`, `refactor` → `type:refactor`, `chore` → `type:chore`.
+Types map to labels: `feat` → `type:feature`, `fix` → `type:bug`, `docs` → `type:docs`, `refactor` → `type:refactor`, `chore`/`style`/`test`/`build`/`ci` → `type:chore`, `perf` → `type:feature`, `revert` → `type:bug`.
 
 ---
 
