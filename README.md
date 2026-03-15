@@ -262,23 +262,25 @@ graph TB
 
 ### Sub-Agent Result Contract
 
-Each sub-agent should return a structured payload with variable depth:
+Each sub-agent must return a structured envelope with these fields:
 
-```json
-{
-  "status": "ok | warning | blocked | failed",
-  "executive_summary": "short decision-grade summary",
-  "detailed_report": "optional long-form analysis when needed",
-  "artifacts": [
-    {
-      "name": "design",
-      "store": "engram | openspec | hybrid | none",
-      "ref": "observation-id | file-path | null"
-    }
-  ],
-  "next_recommended": ["tasks"],
-  "risks": ["optional risk list"]
-}
+| Field | Description |
+|-------|-------------|
+| `status` | `success`, `partial`, or `blocked` |
+| `executive_summary` | 1-3 sentence summary of what was done |
+| `detailed_report` | (optional) Full phase output, or omit if already inline |
+| `artifacts` | List of artifact keys/paths written |
+| `next_recommended` | The next SDD phase to run, or "none" |
+| `risks` | Risks discovered, or "None" |
+
+Example:
+
+```markdown
+**Status**: success
+**Summary**: Proposal created for `{change-name}`. Defined scope, approach, and rollback plan.
+**Artifacts**: Engram `sdd/{change-name}/proposal` | `openspec/changes/{change-name}/proposal.md`
+**Next**: sdd-spec or sdd-design
+**Risks**: None
 ```
 
 `executive_summary` is intentionally short. `detailed_report` can be as long as needed for complex architecture work.
@@ -825,7 +827,7 @@ We measured the real token costs of the orchestrator + sub-agent delegation mode
 agent-teams-lite/
 ├── README.md                          ← You are here
 ├── LICENSE
-├── skills/                            ← 10 skill files + shared conventions
+├── skills/                            ← 12 skill files + shared conventions
 │   ├── _shared/                       ← Shared conventions (referenced by all skills)
 │   │   ├── persistence-contract.md    ← Mode resolution, sub-agent context protocol, skill loading
 │   │   ├── engram-convention.md       ← Supplementary: deterministic naming & recovery
