@@ -1,75 +1,139 @@
 # Persistence Contract (shared across all SDD skills)
 
-## Engram is Mandatory
-
-**Engram MUST be available and active.** If Engram MCP tools (`mem_save`, `mem_search`, `mem_get_observation`) are not accessible, halt immediately and notify the orchestrator with:
-
-```
-ERROR: Engram is required but not available.
-Install Engram: https://github.com/gentleman-programming/engram
-SDD cannot proceed without persistent memory.
-```
-
-Do NOT fall back to any other mode. Do NOT continue without Engram.
-
 ## Mode Resolution
 
-The orchestrator passes `artifact_store.mode` with one of: `dual | engram-only`.
+The orchestrator passes `artifact_store.mode` with one of: `engram | openspec | hybrid | none`.
 
-| Mode | Description |
-|------|-------------|
-| `dual` | **Default.** Write artifacts to both Engram AND `openspec/` filesystem. Engram is canonical; openspec is the auditable project trail. |
-| `engram-only` | Write artifacts to Engram only. No `openspec/` directory is created or modified. Use when the project tree must stay clean or git-uncontaminated. |
+Default resolution (when orchestrator does not explicitly set a mode):
+1. If Engram is available → use `engram`
+2. Otherwise → use `none`
 
-`dual` is ALWAYS the default unless the orchestrator explicitly passes `engram-only`.
+`openspec` and `hybrid` are NEVER used by default — only when the orchestrator explicitly passes them.
+
+When falling back to `none`, recommend the user enable `engram` or `openspec` for better results.
 
 ## Behavior Per Mode
 
-| | Engram | openspec/ | Project files |
-|---|---|---|---|
-| `dual` | ✅ Always — canonical artifact | ✅ Always — auditable trail | ❌ Never |
-| `engram-only` | ✅ Always — canonical artifact | ❌ Never | ❌ Never |
+| Mode | Read from | Write to | Project files |
+|------|-----------|----------|---------------|
+| `engram` | Engram (see `engram-convention.md`) | Engram | Never |
+| `openspec` | Filesystem (see `openspec-convention.md`) | Filesystem | Yes |
+| `hybrid` | Engram (primary) + Filesystem (fallback) | Both Engram AND Filesystem | Yes |
+| `none` | Orchestrator prompt context | Nowhere | Never |
 
-## Write Order in `dual` Mode
+### Hybrid Mode
 
-Always write to Engram first. If the openspec write fails, the Engram artifact is already saved and the skill returns a warning — the change is NOT lost.
+`hybrid` persists every artifact to BOTH Engram and OpenSpec simultaneously. This provides:
+- **Engram**: cross-session recovery, compaction survival, deterministic search
+- **OpenSpec**: human-readable files in the project, version-controllable artifacts
 
-```
-1. Write to Engram (mem_save / mem_update)
-2. Write to openspec/ filesystem
-3. Return structured result
-```
+**Read priority**: Engram first (faster, survives compaction). Fall back to filesystem if Engram returns no results.
+
+**Write behavior**: Write to Engram (per `engram-convention.md`) AND to filesystem (per `openspec-convention.md`) for every artifact. Both writes MUST succeed for the operation to be considered complete.
+
+**Token cost warning**: Hybrid mode consumes MORE tokens per operation than either single backend, because every read/write hits both stores. Use it when you need both cross-session persistence AND local file artifacts. If you only need one benefit, prefer `engram` or `openspec` alone.
 
 ## State Persistence (Orchestrator)
 
-The orchestrator persists DAG state after each phase transition to enable SDD recovery after context compaction.
+The orchestrator persists DAG state after each phase transition. This enables SDD recovery after context compaction.
 
 | Mode | Persist State | Recover State |
 |------|--------------|---------------|
-| `dual` | Engram: `mem_save(topic_key: "sdd/{change-name}/state")` + `openspec/changes/{change-name}/state.yaml` | `mem_search("sdd/*/state")` → `mem_get_observation(id)` → parse YAML |
-| `engram-only` | Engram: `mem_save(topic_key: "sdd/{change-name}/state")` | `mem_search("sdd/*/state")` → `mem_get_observation(id)` → parse YAML |
-
-In `dual` mode, Engram is written first (canonical). The `state.yaml` file is a readable copy for human inspection.
+| `engram` | `mem_save(topic_key: "sdd/{change-name}/state")` | `mem_search("sdd/*/state")` → `mem_get_observation(id)` |
+| `openspec` | Write `openspec/changes/{change-name}/state.yaml` | Read `openspec/changes/{change-name}/state.yaml` |
+| `hybrid` | Both: `mem_save` AND write `state.yaml` | Engram first; filesystem fallback |
+| `none` | Not possible — state lives only in context | Not possible — warn user |
 
 ## Common Rules
 
-- NEVER create `openspec/` structure in `engram-only` mode.
-- NEVER skip Engram in any mode — it is always required.
-- In `dual` mode, ALWAYS write to openspec using the paths defined in `openspec-convention.md`.
-- In `dual` mode, ALWAYS write to Engram using the naming defined in `engram-convention.md`.
-- Project files (CHANGELOG.md, git commits, CLAUDE.md) are NEVER managed by the persistence contract — they are outputs written directly to the project regardless of mode.
+- If mode is `none`, do NOT create or modify any project files. Return results inline only.
+- If mode is `engram`, do NOT write any project files. Persist to Engram and return observation IDs.
+- If mode is `openspec`, write files ONLY to the paths defined in `openspec-convention.md`.
+- If mode is `hybrid`, persist to BOTH Engram AND filesystem. Follow both `engram-convention.md` and `openspec-convention.md` for each artifact.
+- NEVER force `openspec/` creation unless the orchestrator explicitly passed `openspec` or `hybrid` mode.
+- If you are unsure which mode to use, default to `none`.
 
-## Exceptions
+## Sub-Agent Context Rules
 
-Two external skills follow different rules:
+Sub-agents launch with a fresh context and NO access to the orchestrator's instructions or memory protocol. The orchestrator controls what context they receive and sub-agents are responsible for persisting what they produce.
 
-| Skill | Engram | openspec/ | Project |
-|-------|--------|-----------|---------|
-| `sdd-commit` | ✅ commit hash + context | ❌ | ✅ CHANGELOG.md + git commit |
-| `sdd-docs` | ❌ | ✅ config.yaml | ✅ AGENTS.md, CLAUDE.md |
+### Who reads, who writes
 
-`sdd-commit` writes to Engram for traceability but its primary output is the git commit.
-`sdd-docs` generates project configuration files; these belong in git, not in agent memory.
+| Context | Who reads from backend | Who writes to backend |
+|---------|----------------------|----------------------|
+| Non-SDD (general task) | **Orchestrator** searches engram, passes summary in prompt | **Sub-agent** saves discoveries/decisions via `mem_save` |
+| SDD (phase with dependencies) | **Sub-agent** reads artifacts directly from backend | **Sub-agent** saves its artifact |
+| SDD (phase without dependencies, e.g. explore) | Nobody | **Sub-agent** saves its artifact |
+
+### Why this split
+
+- **Orchestrator reads for non-SDD**: It already has the engram protocol loaded. It knows what context is relevant. Sub-agents doing their own searches waste tokens on potentially irrelevant results.
+- **Sub-agents read for SDD**: SDD artifacts are large (specs, designs). The orchestrator should NOT inline them — it passes artifact references (topic keys or file paths) and the sub-agent retrieves the full content.
+- **Sub-agents always write**: They have the complete detail. By the time results flow back to the orchestrator, nuance is lost. Persist at the source.
+
+### Orchestrator prompt instructions for sub-agents
+
+When launching a sub-agent, the orchestrator MUST include persistence instructions in the prompt:
+
+**Non-SDD**:
+```
+PERSISTENCE (MANDATORY):
+If you make important discoveries, decisions, or fix bugs, you MUST save them
+to engram before returning:
+  mem_save(title: "{short description}", type: "{decision|bugfix|discovery|pattern}",
+           project: "{project}", content: "{What, Why, Where, Learned}")
+Do NOT return without saving what you learned. This is how the team builds
+persistent knowledge across sessions.
+```
+
+**SDD (with dependencies)**:
+```
+Artifact store mode: {engram|openspec|hybrid|none}
+Read these artifacts before starting (two-step — search returns truncated previews):
+  mem_search(query: "sdd/{change-name}/{type}", project: "{project}") → get ID
+  mem_get_observation(id: {id}) → full content (REQUIRED for SDD dependencies)
+
+PERSISTENCE (MANDATORY — do NOT skip):
+After completing your work, you MUST call:
+  mem_save(
+    title: "sdd/{change-name}/{artifact-type}",
+    topic_key: "sdd/{change-name}/{artifact-type}",
+    type: "architecture",
+    project: "{project}",
+    content: "{your full artifact markdown}"
+  )
+If you return without calling mem_save, the next phase CANNOT find your artifact
+and the pipeline BREAKS.
+```
+
+**SDD (no dependencies)**:
+```
+Artifact store mode: {engram|openspec|hybrid|none}
+
+PERSISTENCE (MANDATORY — do NOT skip):
+After completing your work, you MUST call:
+  mem_save(
+    title: "sdd/{change-name}/{artifact-type}",
+    topic_key: "sdd/{change-name}/{artifact-type}",
+    type: "architecture",
+    project: "{project}",
+    content: "{your full artifact markdown}"
+  )
+If you return without calling mem_save, the next phase CANNOT find your artifact
+and the pipeline BREAKS.
+```
+
+## Skill Registry
+
+The orchestrator pre-resolves skill paths and passes them in the launch prompt. Sub-agents do NOT search for the skill registry.
+
+### How to generate/update
+
+Run the `skill-registry` skill, or run `sdd-init` (which includes registry generation).
+
+### Sub-agent skill loading
+
+When the orchestrator launches you, it includes a `SKILL: Load \`{path}\`` instruction if a skill is relevant. Load that file and follow it. If no skill path was provided, proceed without loading additional skills — this is not an error.
 
 ## Detail Level
 

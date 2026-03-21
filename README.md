@@ -1,21 +1,14 @@
-<p align="center">
-  <h1 align="center">Agent Teams Lite</h1>
-  <p align="center">
-    <strong>Agent-Team Orchestration with AI Sub-Agents</strong>
-    <br />
-    <em>An orchestrator + specialized sub-agents for structured feature development.</em>
-    <br />
-    <em>Zero dependencies. Pure Markdown. Works everywhere.</em>
-  </p>
-</p>
+<div align="center">
 
-<p align="center">
-  <a href="#quick-start">Quick Start</a> &bull;
-  <a href="#how-it-works">How It Works</a> &bull;
-  <a href="#commands">Commands</a> &bull;
-  <a href="#installation">Installation</a> &bull;
-  <a href="#supported-tools">Supported Tools</a>
-</p>
+# Agent Teams Lite
+
+**Give any AI coding agent a team of specialized sub-agents.**
+
+One install. Works with Claude Code, Gemini CLI, OpenCode, Cursor, Windsurf, Codex, and VS Code Copilot.
+
+[Quick Start](#quick-start) · [How It Works](#how-it-works) · [Commands](#commands) · [Supported Tools](#supported-tools) · [Docs](#learn-more) · [Contributing](CONTRIBUTING.md)
+
+</div>
 
 ---
 
@@ -48,269 +41,39 @@ ORCHESTRATOR (delegate-only, minimal context):
   → launches ARCHIVER sub-agent     → returns: change closed
 ```
 
-**The key insight**: the orchestrator NEVER does phase work directly. It only coordinates sub-agents, tracks state, and synthesizes summaries. This keeps the main thread small and stable.
+**The key insight**: the orchestrator NEVER does real work directly. It delegates everything to sub-agents, tracks state, and synthesizes summaries. This keeps the main thread small and stable.
 
-### Persistence Is Pluggable
-
-The workflow engine is storage-agnostic. Artifacts can be persisted in:
-
-- `engram` (recommended default) — https://github.com/gentleman-programming/engram
-- `openspec` (file-based, optional)
-- `none` (ephemeral, no persistence)
-
-Default policy is conservative:
-
-- If Engram is available, persist to Engram (recommended)
-- If user explicitly asks for file artifacts, use `openspec`
-- Otherwise use `none` (no writes)
-- `openspec` is NEVER chosen automatically — only when the user explicitly asks
-
-### Quick Modes
-
-Recommended defaults by use case:
-
-```yaml
-# Agent-team storage policy
-artifact_store:
-  mode: engram      # Recommended: persistent, repo-clean
-```
-
-```yaml
-# Privacy/local-only (no persistence)
-artifact_store:
-  mode: none
-```
-
-```yaml
-# File artifacts in project (OpenSpec flow)
-artifact_store:
-  mode: openspec
-```
-
----
+Supports multiple persistence modes — see [persistence docs](docs/persistence.md).
 
 ## How It Works
 
-### Where Agent Teams Lite Fits
+Three concepts:
 
-Agent Teams Lite sits between basic sub-agent patterns and full Agent Teams runtimes:
+1. **Delegate-first architecture** — Your main agent becomes an orchestrator that delegates all real work to specialized sub-agents. Each sub-agent gets a fresh context, does focused work, and returns only a summary. [Learn more →](docs/architecture.md)
 
-```mermaid
-graph TB
-    subgraph "Level 1 — Basic Subagents"
-        L1_Lead["Lead Agent"]
-        L1_Sub1["Sub-agent 1"]
-        L1_Sub2["Sub-agent 2"]
-        L1_Lead -->|"fire & forget"| L1_Sub1
-        L1_Lead -->|"fire & forget"| L1_Sub2
-    end
+2. **Spec-Driven Development (SDD)** — A DAG of phases: `explore → propose → spec + design → tasks → apply → verify → archive`. Each phase is a skill that any AI agent can run. [See the phases →](docs/sub-agents.md)
 
-    subgraph "Level 2 — Agent Teams Lite ⭐"
-        L2_Orch["Orchestrator<br/>(delegate-only)"]
-        L2_Explore["Explorer"]
-        L2_Propose["Proposer"]
-        L2_Spec["Spec Writer"]
-        L2_Design["Designer"]
-        L2_Tasks["Task Planner"]
-        L2_Apply["Implementer"]
-        L2_Verify["Verifier"]
-        L2_Archive["Archiver"]
-        
-        L2_Orch -->|"DAG phase"| L2_Explore
-        L2_Orch -->|"DAG phase"| L2_Propose
-        L2_Orch -->|"parallel"| L2_Spec
-        L2_Orch -->|"parallel"| L2_Design
-        L2_Orch -->|"DAG phase"| L2_Tasks
-        L2_Orch -->|"batched"| L2_Apply
-        L2_Orch -->|"DAG phase"| L2_Verify
-        L2_Orch -->|"DAG phase"| L2_Archive
-        
-        L2_Store[("Pluggable Store<br/>engram | openspec | none")]
-        L2_Spec -.->|"persist"| L2_Store
-        L2_Design -.->|"persist"| L2_Store
-        L2_Apply -.->|"persist"| L2_Store
-    end
-
-    subgraph "Level 3 — Full Agent Teams"
-        L3_Orch["Orchestrator"]
-        L3_A1["Agent A"]
-        L3_A2["Agent B"]
-        L3_A3["Agent C"]
-        L3_Queue[("Shared Task Queue<br/>claim / heartbeat")]
-        
-        L3_Orch -->|"manage"| L3_Queue
-        L3_A1 <-->|"claim & report"| L3_Queue
-        L3_A2 <-->|"claim & report"| L3_Queue
-        L3_A3 <-->|"claim & report"| L3_Queue
-        L3_A1 <-.->|"peer comms"| L3_A2
-        L3_A2 <-.->|"peer comms"| L3_A3
-    end
-
-    style L2_Orch fill:#4CAF50,color:#fff,stroke:#333
-    style L2_Store fill:#2196F3,color:#fff,stroke:#333
-    style L3_Queue fill:#FF9800,color:#fff,stroke:#333
-```
-
-| Capability | Basic Subagents | Agent Teams Lite | Full Agent Teams |
-|---|:---:|:---:|:---:|
-| Delegate-only lead | — | ✅ | ✅ |
-| DAG-based phase orchestration | — | ✅ | ✅ |
-| Parallel phases (spec ∥ design) | — | ✅ | ✅ |
-| Structured result envelope | — | ✅ | ✅ |
-| Pluggable artifact store | — | ✅ | ✅ |
-| Shared task queue with claim/heartbeat | — | — | ✅ |
-| Teammate ↔ teammate communication | — | — | ✅ |
-| Dynamic work stealing | — | — | ✅ |
-
-### Architecture
-
-```
-┌──────────────────────────────────────────────────────────┐
-│  ORCHESTRATOR (your main agent — gentleman, default, etc) │
-│                                                           │
-│  Responsibilities:                                        │
-│  • Detect when SDD is needed                              │
-│  • Launch sub-agents via Task tool                        │
-│  • Show summaries to user                                 │
-│  • Ask for approval between phases                        │
-│  • Track state: which artifacts exist, what's next        │
-│                                                           │
-│  Context usage: MINIMAL (only state + summaries)          │
-└──────────────┬───────────────────────────────────────────┘
-               │
-               │ Task(subagent_type: 'general', prompt: 'Read skill...')
-               │
-    ┌──────────┴──────────────────────────────────────────┐
-    │                                                      │
-    ▼          ▼          ▼         ▼         ▼           ▼
-┌────────┐┌────────┐┌────────┐┌────────┐┌────────┐┌────────┐
-│EXPLORE ││PROPOSE ││  SPEC  ││ DESIGN ││ TASKS  ││ APPLY  │ ...
-│        ││        ││        ││        ││        ││        │
-│ Fresh  ││ Fresh  ││ Fresh  ││ Fresh  ││ Fresh  ││ Fresh  │
-│context ││context ││context ││context ││context ││context │
-└────────┘└────────┘└────────┘└────────┘└────────┘└────────┘
-```
-
-### The Dependency Graph
-
-```
-                    proposal
-                   (root node)
-                       │
-         ┌─────────────┴─────────────┐
-         │                           │
-         ▼                           ▼
-      specs                       design
-   (requirements                (technical
-    + scenarios)                 approach)
-         │                           │
-         └─────────────┬─────────────┘
-                       │
-                       ▼
-                    tasks
-                (implementation
-                  checklist)
-                       │
-                       ▼
-                    apply
-                (write code)
-                       │
-                       ▼
-                    verify
-               (quality gate)
-                       │
-                       ▼
-                   archive
-              (merge specs,
-               close change)
-```
-
-### Sub-Agent Result Contract
-
-Each sub-agent should return a structured payload with variable depth:
-
-```json
-{
-  "status": "ok | warning | blocked | failed",
-  "executive_summary": "short decision-grade summary",
-  "detailed_report": "optional long-form analysis when needed",
-  "artifacts": [
-    {
-      "name": "design",
-      "store": "engram | openspec | none",
-      "ref": "observation-id | file-path | null"
-    }
-  ],
-  "next_recommended": ["tasks"],
-  "risks": ["optional risk list"]
-}
-```
-
-`executive_summary` is intentionally short. `detailed_report` can be as long as needed for complex architecture work.
-
-### Artifact Persistence (Optional)
-
-When `openspec` mode is enabled, a change can produce a self-contained folder:
-
-```
-openspec/
-├── config.yaml                        ← Project context (stack, conventions)
-├── specs/                             ← Source of truth: how the system works TODAY
-│   ├── auth/spec.md
-│   ├── export/spec.md
-│   └── ui/spec.md
-└── changes/
-    ├── add-csv-export/                ← Active change
-    │   ├── proposal.md                ← WHY + SCOPE + APPROACH
-    │   ├── specs/                     ← Delta specs (ADDED/MODIFIED/REMOVED)
-    │   │   └── export/spec.md
-    │   ├── design.md                  ← HOW (architecture decisions)
-    │   └── tasks.md                   ← WHAT (implementation checklist)
-    └── archive/                       ← Completed changes (audit trail)
-        └── 2026-02-16-fix-auth/
-```
-
----
+3. **Your skills, pre-loaded** — A skill registry catalogs your coding standards (React, TDD, Tailwind, etc.) and the orchestrator passes them to every sub-agent automatically. [Details →](docs/sub-agents.md#skill-registry)
 
 ## Quick Start
 
-### 1. Install the skills
-
 ```bash
-git clone https://github.com/gentleman-programming/agent-teams-lite.git
+git clone https://github.com/Gentleman-Programming/agent-teams-lite.git
 cd agent-teams-lite
-./scripts/install.sh
+./scripts/setup.sh --all
 ```
 
-The installer asks which tool you use and copies skills to the right location.
+That's it. The script detects which tools you have installed and configures them.
 
-### 2. Add the orchestrator to your agent
+> **Windows?** Run `.\scripts\setup.ps1 -All` in PowerShell.
 
-See [Installation](#installation) for your specific tool.
-
-### 3. Use it
-
-Open your AI assistant in any project and say:
-
-```
-/sdd-init
-```
-
-Then start building:
-
-```
-/sdd-new add-csv-export
-```
-
-Or let it detect automatically — describe a substantial feature and the orchestrator will suggest SDD.
-
----
+For manual installation or per-tool setup, see [docs/installation.md](docs/installation.md).
 
 ## Commands
 
 | Command | What It Does |
 |---------|-------------|
-| `/sdd-init` | Initialize SDD context. Detects stack and bootstraps the active persistence backend. |
+| `/sdd-init` | Initialize SDD context. Detects stack, bootstraps persistence, builds skill registry. |
 | `/sdd-explore <topic>` | Investigate an idea. Reads codebase, compares approaches. No files created. |
 | `/sdd-new <name>` | Start a new change by delegating exploration + proposal to sub-agents. |
 | `/sdd-continue` | Run the next dependency-ready phase via sub-agent(s). |
@@ -318,345 +81,23 @@ Or let it detect automatically — describe a substantial feature and the orches
 | `/sdd-apply` | Implement tasks in batches. Checks off items as it goes. |
 | `/sdd-verify` | Validate implementation against specs. Reports CRITICAL / WARNING / SUGGESTION. |
 | `/sdd-archive` | Close a change and persist final state in the active artifact store. |
-
-### Example Flow
-
-```
-You: /sdd-new add-dark-mode
-
-AI:  Launching explorer sub-agent...
-     ✓ Codebase analyzed. React + Tailwind detected.
-     ✓ Current theme: hardcoded light mode in globals.css
-     
-     Launching proposal sub-agent...
-     ✓ proposal.md created
-       Intent: Add dark mode toggle with system preference detection
-       Scope: Theme context, toggle component, CSS variables
-     
-     Want me to continue with specs and design? (or review the proposal first)
-
-You: Go ahead
-
-AI:  ✓ specs/ui/spec.md — 3 requirements, 7 scenarios
-     ✓ design.md — CSS variables approach, React Context, localStorage
-     ✓ tasks.md — 3 phases, 8 tasks
-     
-     Ready to implement. Run /sdd-apply to start.
-
-You: /sdd-apply
-
-AI:  Implementing Phase 1 (Foundation)...
-     ✓ 1.1 Created ThemeContext
-     ✓ 1.2 Added CSS custom properties
-     ✓ 1.3 Added localStorage persistence
-     
-     3/8 tasks complete. Continue with Phase 2?
-```
-
----
-
-## The Sub-Agents
-
-Each sub-agent is a SKILL.md file — pure Markdown instructions that any AI assistant can follow.
-
-| Sub-Agent | Skill File | What It Does |
-|-----------|-----------|-------------|
-| **Init** | `sdd-init/SKILL.md` | Detects project stack, creates `openspec/` structure |
-| **Explorer** | `sdd-explore/SKILL.md` | Reads codebase, compares approaches, identifies risks |
-| **Proposer** | `sdd-propose/SKILL.md` | Creates `proposal.md` with intent, scope, rollback plan |
-| **Spec Writer** | `sdd-spec/SKILL.md` | Writes delta specs (ADDED/MODIFIED/REMOVED) with Given/When/Then |
-| **Designer** | `sdd-design/SKILL.md` | Creates `design.md` with architecture decisions and rationale |
-| **Task Planner** | `sdd-tasks/SKILL.md` | Breaks down into phased, numbered task checklist |
-| **Implementer** | `sdd-apply/SKILL.md` | Writes code following specs and design, marks tasks complete. v2.0: TDD workflow support |
-| **Verifier** | `sdd-verify/SKILL.md` | Validates implementation against specs with real test execution. v2.0: spec compliance matrix |
-| **Archiver** | `sdd-archive/SKILL.md` | Merges delta specs into main specs, moves to archive |
-
-### Shared Conventions
-
-All 12 skills reference three shared convention files in `skills/_shared/` instead of inlining persistence logic. This removes duplication and ensures consistent behavior across the entire workflow.
-
-| File | Purpose |
-|------|---------|
-| `persistence-contract.md` | Mode resolution rules — how `engram`, `openspec`, and `none` modes behave, what each mode reads/writes, and the fallback policy |
-| `engram-convention.md` | Deterministic artifact naming (`sdd/{change-name}/{artifact-type}`), two-step recovery protocol (search then get full content), and write/update patterns via `topic_key` upserts |
-| `openspec-convention.md` | Filesystem paths for each artifact, directory structure, config.yaml reference, and archive layout |
-
-**Why they exist:**
-- **DRY** — Previously each skill inlined its own persistence logic (~224 lines of duplication across 9 skills (now 11)). Now each skill references the shared files.
-- **Deterministic recovery** — Engram artifact naming follows a strict `sdd/{change}/{type}` convention with `topic_key`, so any skill can reliably find artifacts created by other skills without fuzzy search.
-- **Consistent mode behavior** — All skills resolve `engram | openspec | none` the same way. `openspec` is never chosen automatically.
-
-### v2.0 Skill Upgrades
-
-Two skills received major upgrades:
-
-- **sdd-apply v2.0** — Added TDD workflow support. When enabled (via `openspec/config.yaml` or orchestrator config), the implementer follows a RED-GREEN-REFACTOR cycle: write a failing test first, implement until it passes, then refactor. Controlled by `tdd: true` and `test_command` in config.
-- **sdd-verify v2.0** — Now performs real test execution instead of static analysis only. Runs the project's test suite and build commands, produces a spec compliance matrix mapping each requirement to PASS/FAIL/SKIP, and reports issues at CRITICAL/WARNING/SUGGESTION severity levels. Configurable via `test_command`, `build_command`, and `coverage_threshold`.
-
----
-
-## Installation
-
-Dedicated setup guides for all supported tools:
-
-- [Claude Code](#claude-code) — Full sub-agent support via Task tool
-- [OpenCode](#opencode) — Full sub-agent support via Task tool
-- [Gemini CLI](#gemini-cli) — Inline skill execution
-- [Codex](#codex) — Inline skill execution
-- [VS Code (Copilot)](#vs-code-copilot) — Agent mode with context files
-- [Antigravity](#antigravity) — Native skill support with `~/.gemini/antigravity/skills/` and `.agent/` paths
-- [Cursor](#cursor) — Inline skill execution
-
-### Claude Code
-
-**1. Install Engram (required):**
-
-Engram provides persistent memory across sessions. Claude Code requires it.
-
-```bash
-# https://github.com/gentleman-programming/engram
-```
-
-**2. Copy skills:**
-
-```bash
-# Using the install script
-./scripts/install.sh  # Choose option 1: Claude Code
-
-# Or manually
-cp -r skills/sdd-* ~/.claude/skills/
-```
-
-**3. Add orchestrator to `~/.claude/CLAUDE.md`:**
-
-Append the contents of [`examples/claude-code/CLAUDE.md`](examples/claude-code/CLAUDE.md) to your existing `CLAUDE.md`.
-
-This adds SDD as an orchestration overlay without replacing your existing assistant identity.
-
-The orchestrator teaches Claude Code to:
-- Detect SDD triggers (`sdd init`, `sdd new <name>`, feature descriptions, etc.)
-- Launch true sub-agents via the `Task tool` — each sub-agent starts with fresh context
-- Read skill files from `~/.claude/skills/sdd-*/SKILL.md`
-- Sync Engram memory before every commit via `engram sync --project <name>`
-
-**4. Verify:**
-
-Open Claude Code in your project and type:
-
-```
-sdd init
-```
-
-Claude should recognize the trigger, confirm Engram availability, and initialize SDD context.
-
-> **How triggers work in Claude Code:** Unlike OpenCode (which has native `/sdd-*` slash commands), Claude Code detects SDD intent from natural language. Both `sdd init` and `/sdd-init` are recognized — the orchestrator intercepts them and dispatches sub-agents via the Task tool. Sub-agents always have fresh context, making Claude Code equivalent to OpenCode for agent team workflows.
-
----
-
-### OpenCode
-
-**1. Install Engram (required):**
-
-```bash
-# https://github.com/gentleman-programming/engram
-```
-
-**2. Install skills, commands, and agent (one step):**
-
-```bash
-# Using the install script — installs skills + commands + agent automatically
-./scripts/install.sh  # Choose option 2: OpenCode
-
-# Or manually
-cp -r skills/sdd-* ~/.config/opencode/skills/
-cp examples/opencode/commands/sdd-*.md ~/.config/opencode/commands/
-cp examples/opencode/agents/sdd-orchestrator.md ~/.config/opencode/agents/
-```
-
-The install script copies:
-- **12 skills** → `~/.config/opencode/skills/`
-- **8 slash commands** → `~/.config/opencode/commands/`
-- **`sdd-orchestrator` agent** → `~/.config/opencode/agents/` (loaded automatically by OpenCode)
-
-No manual JSON editing required.
-
-**3. Verify and use:**
-
-```bash
-opencode .            # Open OpenCode in your project
-# Tab → select sdd-orchestrator
-/sdd-init             # Initialize SDD — confirms Engram + bootstraps openspec/
-/sdd-new <name>       # Start a new change
-/sdd-ff <name>        # Fast-forward all planning phases
-/sdd-apply            # Implement in batches
-/sdd-verify           # Validate against specs
-/sdd-archive          # Close and archive the change
-```
-
-Switch back to your everyday agent (Tab) for day-to-day coding outside SDD workflows.
-
----
-
-### Gemini CLI
-
-**1. Copy skills:**
-
-```bash
-# Using the install script
-./scripts/install.sh  # Choose Gemini CLI option
-
-# Or manually
-cp -r skills/sdd-* ~/.gemini/skills/
-```
-
-**2. Add orchestrator to `~/.gemini/GEMINI.md`:**
-
-Append the contents of [`examples/gemini-cli/GEMINI.md`](examples/gemini-cli/GEMINI.md) to your Gemini system prompt file (create it if it doesn't exist).
-
-Make sure `GEMINI_SYSTEM_MD=1` is set in `~/.gemini/.env` so Gemini loads the system prompt.
-
-**3. Verify:**
-
-Open Gemini CLI and type `/sdd-init` — it should recognize the command.
-
-> **Note:** Gemini CLI doesn't have a native Task tool for sub-agent delegation. The skills work as inline instructions — the orchestrator reads them directly rather than spawning fresh-context sub-agents. For the best sub-agent experience, use Claude Code or OpenCode.
-
----
-
-### Codex
-
-**1. Copy skills:**
-
-```bash
-# Using the install script
-./scripts/install.sh  # Choose Codex option
-
-# Or manually
-cp -r skills/sdd-* ~/.codex/skills/
-```
-
-**2. Add orchestrator instructions:**
-
-Add the orchestrator instructions to `~/.codex/agents.md` (or your `model_instructions_file` if configured).
-
-**3. Verify:**
-
-Open Codex and type `/sdd-init`.
-
-> **Note:** Like Gemini CLI, Codex runs skills inline rather than as true sub-agents. The planning phases (proposal, spec, design, tasks) still work well; implementation batching is handled by the orchestrator instructions.
-
----
-
-### VS Code (Copilot)
-
-VS Code supports MCP and custom instructions natively. The skills work with Copilot's agent mode and any MCP-compatible extension.
-
-**1. Copy skills to workspace:**
-
-```bash
-# Per-project (recommended)
-cp -r skills/sdd-* ./your-project/.vscode/skills/
-
-# Or using the install script
-./scripts/install.sh  # Choose VS Code option
-```
-
-**2. Add orchestrator instructions:**
-
-Create a VS Code `.instructions.md` file in the User prompts folder and append the orchestrator instructions from [`examples/vscode/copilot-instructions.md`](examples/vscode/copilot-instructions.md).
-
-Recommended User prompt path:
-- macOS: `~/Library/Application Support/Code/User/prompts/sdd-orchestrator.instructions.md`
-- Linux: `~/.config/Code/User/prompts/sdd-orchestrator.instructions.md`
-- Windows: `%APPDATA%\Code\User\prompts\sdd-orchestrator.instructions.md`
-
-Alternatively, use VS Code's custom instructions setting:
-1. Open Settings (`Cmd+,` / `Ctrl+,`)
-2. Search for `github.copilot.chat.codeGeneration.instructions`
-3. Add the SDD orchestrator instructions
-
-If you also configure MCP at user level, use:
-- macOS: `~/Library/Application Support/Code/User/mcp.json`
-- Linux: `~/.config/Code/User/mcp.json`
-- Windows: `%APPDATA%\Code\User\mcp.json`
-
-**3. Verify:**
-
-Open VS Code, open the Chat panel (Ctrl+Cmd+I / Ctrl+Alt+I), and type `/sdd-init`.
-
-> **Note:** VS Code Copilot supports agent mode with tool use. Skills work as context files. For true sub-agent delegation with fresh context windows, use Claude Code or OpenCode.
-
----
-
-### Antigravity
-
-[Antigravity](https://antigravity.google) is Google's AI-first IDE with native skill support. It has its own skill and rule system separate from VS Code.
-
-**1. Copy skills:**
-
-```bash
-# Global (available across all projects)
-./scripts/install.sh  # Choose Antigravity option
-
-# Or manually (global)
-cp -r skills/sdd-* ~/.gemini/antigravity/skills/
-
-# Workspace-specific (per project)
-mkdir -p .agent/skills
-cp -r skills/sdd-* .agent/skills/
-```
-
-**2. Add orchestrator instructions:**
-
-Add the SDD orchestrator as a global rule in `~/.gemini/GEMINI.md`, or create a workspace rule in `.agent/rules/sdd-orchestrator.md`.
-
-See [`examples/antigravity/sdd-orchestrator.md`](examples/antigravity/sdd-orchestrator.md) for the rule content.
-
-**3. Verify:**
-
-Open Antigravity and type `/sdd-init` in the agent panel.
-
-> **Note:** Antigravity uses `.agent/skills/` and `.agent/rules/` for workspace config, and `~/.gemini/antigravity/skills/` for global. It does NOT use `.vscode/` paths.
-
----
-
-### Cursor
-
-**1. Copy skills to project or global:**
-
-```bash
-# Global
-./scripts/install.sh  # Choose option 3: Cursor
-
-# Or per-project
-cp -r skills/sdd-* ./your-project/skills/
-```
-
-**2. Add orchestrator to `.cursorrules`:**
-
-Append the contents of [`examples/cursor/.cursorrules`](examples/cursor/.cursorrules) to your project's `.cursorrules` file.
-
-**Note:** Cursor doesn't have a Task tool for true sub-agent delegation. The skills still work — Cursor reads them as instructions — but the orchestrator runs inline rather than delegating to fresh-context sub-agents. For the best sub-agent experience, use Claude Code or OpenCode.
-
----
-
-### Other Tools
-
-The skills are pure Markdown. Any AI assistant that can read files can use them.
-
-**1. Copy skills** to wherever your tool reads instructions from.
-
-**2. Add orchestrator instructions** to your tool's system prompt or rules file.
-
-**3. Adapt the sub-agent pattern:**
-- If your tool has a Task/sub-agent mechanism → use the pattern from `examples/claude-code/CLAUDE.md`
-- If not → the orchestrator reads the skills inline (still works, just uses more context)
-
----
+| `/skill-registry` | Create or update the skill registry for the current project. |
+
+## Supported Tools
+
+| Tool | Sub-agent support | Setup |
+|------|------------------|-------|
+| Claude Code | Full (Task tool) | `./scripts/setup.sh --claude` |
+| OpenCode | Full (delegate/task) | `./scripts/setup.sh --opencode` |
+| Gemini CLI | Full (Task tool) | `./scripts/setup.sh --gemini` |
+| Codex | Full (Task tool) | `./scripts/setup.sh --codex` |
+| Cursor | Inline only | `./scripts/setup.sh --cursor` |
+| VS Code Copilot | Inline only | `./scripts/setup.sh --vscode` |
+| Windsurf | Inline only | `./scripts/setup.sh --windsurf` |
+
+> **Full** = orchestrator delegates to sub-agents. **Inline** = skills loaded directly into main agent.
 
 ## Why Not Just Use OpenSpec?
-
-[OpenSpec](https://openspec.dev) is great. We took heavy inspiration from it. But:
 
 | | OpenSpec | Agent Teams Lite |
 |---|---|---|
@@ -667,126 +108,38 @@ The skills are pure Markdown. Any AI assistant that can read files can use them.
 | **Tool support** | 20+ tools via CLI | Any tool that can read Markdown (infinite) |
 | **Setup** | CLI init + slash commands | Copy files + go |
 
-**The key difference is the sub-agent architecture.** OpenSpec runs everything in a single conversation context. Agent Teams Lite uses the Task tool to spawn fresh-context sub-agents, keeping the orchestrator's context window clean.
+## Token Economics
 
-This means:
-- Less context compression = fewer hallucinations
-- Each sub-agent gets focused instructions = better output quality
-- Orchestrator stays lightweight = can handle longer feature development sessions
+We measured the real token costs of delegation across 3 independent analyses. Delegation saves 50-70% of tokens for medium-to-large features by avoiding context pollution and compaction cascades.
 
----
+→ **[Full analysis: docs/token-economics.md](docs/token-economics.md)**
 
-## Project Structure
+## Learn More
 
-```
-agent-teams-lite/
-├── README.md                          ← You are here
-├── LICENSE
-├── skills/                            ← The 9 sub-agent skill files + shared conventions
-│   ├── _shared/                       ← Shared conventions (referenced by all skills)
-│   │   ├── persistence-contract.md    ← Mode resolution rules (engram/openspec/none)
-│   │   ├── engram-convention.md       ← Deterministic naming & recovery protocol
-│   │   └── openspec-convention.md     ← File paths, directory structure, config reference
-│   ├── sdd-init/SKILL.md
-│   ├── sdd-explore/SKILL.md
-│   ├── sdd-propose/SKILL.md
-│   ├── sdd-spec/SKILL.md
-│   ├── sdd-design/SKILL.md
-│   ├── sdd-tasks/SKILL.md
-│   ├── sdd-apply/SKILL.md             ← v2.0: TDD workflow support
-│   ├── sdd-verify/SKILL.md            ← v2.0: Real test execution + spec compliance matrix
-│   └── sdd-archive/SKILL.md
-├── examples/                          ← Config examples per tool
-│   ├── claude-code/CLAUDE.md
-│   ├── opencode/
-│   │   ├── agents/sdd-orchestrator.md ← Orchestrator agent (Markdown, auto-loaded)
-│   │   ├── commands/sdd-*.md          ← Slash commands for OpenCode
-│   │   └── opencode.json              ← Legacy reference (superseded by agents/)
-│   ├── gemini-cli/GEMINI.md
-│   ├── codex/agents.md
-│   ├── vscode/copilot-instructions.md
-│   ├── antigravity/sdd-orchestrator.md
-│   └── cursor/.cursorrules
-└── scripts/
-    └── install.sh                     ← Interactive installer
-```
-
----
-
-## Concepts
-
-### Delta Specs
-
-Instead of rewriting entire specs, changes describe what's different:
-
-```markdown
-## ADDED Requirements
-
-### Requirement: CSV Export
-The system SHALL support exporting data to CSV format.
-
-#### Scenario: Export all observations
-- GIVEN the user has observations stored
-- WHEN the user requests CSV export
-- THEN a CSV file is generated with all observations
-- AND column headers match the observation fields
-
-## MODIFIED Requirements
-
-### Requirement: Data Export
-The system SHALL support multiple export formats.
-(Previously: The system SHALL support JSON export.)
-```
-
-When the change is archived, these deltas merge into the main specs automatically.
-
-### RFC 2119 Keywords
-
-Specs use standardized language for requirement strength:
-
-| Keyword | Meaning |
-|---------|---------|
-| **MUST / SHALL** | Absolute requirement |
-| **SHOULD** | Recommended, exceptions may exist |
-| **MAY** | Optional |
-
-### The Archive Cycle
-
-```
-1. Specs describe current behavior
-2. Changes propose modifications (as deltas)
-3. Implementation makes changes real
-4. Archive merges deltas into specs
-5. Specs now describe the new behavior
-6. Next change builds on updated specs
-```
-
----
+| Topic | Description |
+|-------|-------------|
+| [Architecture](docs/architecture.md) | System diagrams, DAG, capability comparison, project structure |
+| [Installation](docs/installation.md) | Per-tool setup, manual install, verification steps |
+| [Sub-Agents](docs/sub-agents.md) | Phase descriptions, skill registry, shared conventions |
+| [Persistence](docs/persistence.md) | Storage modes (engram, openspec, hybrid, none) |
+| [Concepts](docs/concepts.md) | Delta specs, RFC 2119 keywords, archive cycle |
+| [Token Economics](docs/token-economics.md) | Real-world token usage analysis and optimizations |
+| [Changelog](docs/changelog.md) | Version history and notable upgrades |
 
 ## Contributing
 
-PRs welcome. The skills are Markdown — easy to improve.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the full workflow. TL;DR:
 
-**To add a new sub-agent:**
-1. Create `skills/sdd-{name}/SKILL.md` following the existing format
-2. Add it to the dependency graph in the orchestrator instructions
-3. Update the examples and README
-
-**To improve an existing sub-agent:**
-1. Edit the `SKILL.md` directly
-2. Test by running SDD in a real project
-3. Submit PR with before/after examples
-
----
+1. Open an issue using a template (bug or feature)
+2. Wait for `status:approved` label
+3. Open a PR linking the approved issue
 
 ## License
 
-MIT
+Apache 2.0 — see [LICENSE](LICENSE).
 
 ---
 
-<p align="center">
-  <strong>Built by <a href="https://github.com/gentleman-programming">Gentleman Programming</a></strong>
-  <br />
-  <em>Because building without a plan is just vibe coding with extra steps.</em>
-</p>
+<div align="center">
+  <sub>Built by <a href="https://github.com/Gentleman-Programming">Gentleman Programming</a></sub>
+</div>

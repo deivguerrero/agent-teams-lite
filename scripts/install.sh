@@ -75,14 +75,14 @@ get_tool_path() {
             ;;
         opencode)
             case "$OS" in
-                windows)  echo "$APPDATA/opencode/skills" ;;
+                windows)  echo "$USERPROFILE/.config/opencode/skills" ;;
                 macos)    echo "$HOME/.config/opencode/skills" ;;
                 *)        echo "$HOME/.config/opencode/skills" ;;
             esac
             ;;
         opencode-commands)
             case "$OS" in
-                windows)  echo "$APPDATA/opencode/commands" ;;
+                windows)  echo "$USERPROFILE/.config/opencode/commands" ;;
                 macos)    echo "$HOME/.config/opencode/commands" ;;
                 *)        echo "$HOME/.config/opencode/commands" ;;
             esac
@@ -108,7 +108,9 @@ get_tool_path() {
                 *)        echo "$HOME/.codex/skills" ;;
             esac
             ;;
-        vscode)      echo "./.vscode/skills" ;;
+        vscode)
+            echo ".vscode/skills"
+            ;;
         antigravity)
             case "$OS" in
                 windows)  echo "$USERPROFILE/.gemini/antigravity/skills" ;;
@@ -238,7 +240,9 @@ install_skills() {
     fi
 
     local count=0
-    for skill_dir in "$SKILLS_SRC"/sdd-*/; do
+    # Install sdd-* skills, skill-registry, branch-pr, and issue-creation
+    for skill_dir in "$SKILLS_SRC"/sdd-*/ "$SKILLS_SRC"/skill-registry/ "$SKILLS_SRC"/branch-pr/ "$SKILLS_SRC"/issue-creation/; do
+        [ -d "$skill_dir" ] || continue
         local skill_name
         skill_name=$(basename "$skill_dir")
 
@@ -325,7 +329,6 @@ install_for_agent() {
         vscode)
             install_skills "$(get_tool_path vscode)" "VS Code (Copilot)"
             print_next_step ".github/copilot-instructions.md" "examples/vscode/copilot-instructions.md"
-            echo -e "  ${YELLOW}Note:${NC} Skills installed in current project (.vscode/skills/)"
             ;;
         antigravity)
             target="$(get_tool_path antigravity)"
