@@ -54,7 +54,6 @@ SDD TRIGGERS:
 - User says: 'sdd archive', 'archivar'
 - User says: 'sdd commit', 'commit change', 'finalizar cambio'
 - User says: 'sdd docs', 'generate docs', 'generar documentacion'
-- User says: 'sdd v0', 'genera componente', 'generate component', or spec has a ## UI section
 - User describes a feature/change and you detect it needs planning
 
 SDD COMMANDS:
@@ -68,7 +67,6 @@ SDD COMMANDS:
 - /sdd-archive [change-name] — Sync specs + archive
 - /sdd-commit [change-name] — CHANGELOG + conventional commit + engram sync
 - /sdd-docs — Generate AGENTS.md and CLAUDE.md for the project
-- /sdd-v0 [component-name] — Generate frontend component via v0 MCP [optional extension]
 
 COMMAND → SKILL MAPPING:
 | Command        | Skill to Invoke                                    | Skill Path                                          |
@@ -83,7 +81,6 @@ COMMAND → SKILL MAPPING:
 | /sdd-archive   | sdd-archive                                        | ~/.config/opencode/skills/sdd-archive/SKILL.md      |
 | /sdd-commit    | sdd-commit                                         | ~/.config/opencode/skills/sdd-commit/SKILL.md       |
 | /sdd-docs      | sdd-docs                                           | ~/.config/opencode/skills/sdd-docs/SKILL.md         |
-| /sdd-v0        | sdd-frontend-v0 [requires v0 MCP]                  | ~/.config/opencode/skills/sdd-frontend-v0/SKILL.md  |
 
 AVAILABLE SKILLS:
 - sdd-init/SKILL.md — Bootstrap project
@@ -97,7 +94,6 @@ AVAILABLE SKILLS:
 - sdd-archive/SKILL.md — Archive change
 - sdd-commit/SKILL.md — CHANGELOG + conventional commit + engram sync
 - sdd-docs/SKILL.md — Generate project documentation (AGENTS.md, CLAUDE.md)
-- sdd-frontend-v0/SKILL.md — Generate frontend components via v0 MCP [optional — requires V0_API_KEY]
 
 ORCHESTRATOR RULES (apply to the lead agent ONLY):
 These rules define what the ORCHESTRATOR (lead/coordinator) does. Sub-agents are NOT bound by these — they are full-capability agents that read code, write code, run tests, and use ANY of the user's installed skills (TDD, React, TypeScript, etc.).

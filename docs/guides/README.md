@@ -47,7 +47,6 @@ flowchart LR
 | `/sdd-archive` | Cierra el cambio y archiva los artefactos |
 | `/sdd-commit` | CHANGELOG + commit convencional + engram sync |
 | `/sdd-docs` | Genera AGENTS.md y CLAUDE.md del proyecto |
-| `/sdd-v0 <componente>` | Genera componente frontend via v0 MCP _(extensión opcional)_ |
 
 ---
 
@@ -126,8 +125,3 @@ Los artefactos (propuestas, specs, diseños, tareas) se pueden guardar en:
 
 ---
 
-## Extensiones Opcionales
-
-Extensiones que se instalan con el framework pero requieren configuración adicional:
-
-- **[v0 — Generación de componentes frontend →](../extensions/v0-setup.md)** — Genera componentes React/Vue/Svelte/Next.js usando v0 by Vercel vía MCP. Requiere cuenta en v0.dev y `V0_API_KEY`.
